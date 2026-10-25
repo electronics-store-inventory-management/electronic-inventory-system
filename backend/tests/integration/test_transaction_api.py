@@ -2,11 +2,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+import pytest
 
-from app.database.database import Base
+from app.database.database import Base, get_db as db_get_db
 from app.main import app
 from app.models.product import Product
-from app.routers.transactions import get_db
+from app.routers.audit_logs import get_db as audit_get_db
+from app.routers.product import get_db as product_get_db
+from app.routers.reports import get_db as reports_get_db
+from app.routers.suppliers import get_db as suppliers_get_db
+from app.routers.transactions import get_db as transactions_get_db
 
 from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
 
@@ -34,17 +39,34 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+GET_DBS = (
+    db_get_db,
+    product_get_db,
+    suppliers_get_db,
+    transactions_get_db,
+    reports_get_db,
+    audit_get_db,
+)
 
-client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def _db_setup():
+    saved = dict(app.dependency_overrides)
 
-def setup_database():
+    for _get_db in GET_DBS:
+        app.dependency_overrides[_get_db] = override_get_db
+
     Base.metadata.create_all(bind=engine)
 
+    yield
 
-def teardown_database():
     Base.metadata.drop_all(bind=engine)
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(saved)
+
+
+client = TestClient(app)
 
 
 def create_product_db(name="Widget", quantity=100):
@@ -60,8 +82,6 @@ def create_product_db(name="Widget", quantity=100):
 
 # TC-Transaction-01.1
 def test_restock_shows_up_in_transactions():
-    setup_database()
-
     product_id = create_product_db(quantity=100)
 
     response = client.post(
@@ -88,13 +108,9 @@ def test_restock_shows_up_in_transactions():
     assert data[0]["user_id"] == 1
     assert data[0]["reference"] == "RESTOCK-001"
 
-    teardown_database()
-
 
 # TC-Transaction-01.2
 def test_sale_creates_deduct_row():
-    setup_database()
-
     product_id = create_product_db(quantity=100)
 
     response = client.post(
@@ -115,13 +131,9 @@ def test_sale_creates_deduct_row():
     assert data["transaction_type"] == "DEDUCT"
     assert data["quantity"] == 4
 
-    teardown_database()
-
 
 # TC-Transaction-01.3
 def test_sale_larger_than_stock_no_row_stock_unchanged():
-    setup_database()
-
     product_id = create_product_db(quantity=5)
 
     response = client.post(
@@ -144,13 +156,9 @@ def test_sale_larger_than_stock_no_row_stock_unchanged():
     transactions = client.get("/transactions/", headers=ADMIN_HEADERS).json()
     assert len(transactions) == 0
 
-    teardown_database()
-
 
 # TC-Transaction-01.4
 def test_filtering_by_product_and_newest_first():
-    setup_database()
-
     product_a = create_product_db("Product A", quantity=100)
     product_b = create_product_db("Product B", quantity=100)
 
@@ -194,13 +202,9 @@ def test_filtering_by_product_and_newest_first():
     assert data[0]["reference"] == "SECOND"
     assert data[1]["reference"] == "FIRST"
 
-    teardown_database()
-
 
 # TC-Transaction-01.5
 def test_without_login_401():
-    setup_database()
-
     response = client.post(
         "/transactions/",
         json={
@@ -216,13 +220,9 @@ def test_without_login_401():
     response = client.get("/transactions/")
     assert response.status_code == 401
 
-    teardown_database()
-
 
 # TC-Transaction-01.6
 def test_post_not_allowed_for_employee_restock():
-    setup_database()
-
     product_id = create_product_db(quantity=100)
 
     response = client.post(
@@ -238,5 +238,3 @@ def test_post_not_allowed_for_employee_restock():
     )
 
     assert response.status_code == 403
-
-    teardown_database()

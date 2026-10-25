@@ -2,12 +2,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+import pytest
 
-from app.database.database import Base
+from app.database.database import Base, get_db as db_get_db
 from app.main import app
 from app.models.product import Product
 from app.models.supplier import Supplier
-from app.routers.audit_logs import get_db
+from app.routers.audit_logs import get_db as audit_get_db
+from app.routers.product import get_db as product_get_db
+from app.routers.reports import get_db as reports_get_db
+from app.routers.suppliers import get_db as suppliers_get_db
+from app.routers.transactions import get_db as transactions_get_db
 
 from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
 
@@ -35,17 +40,34 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+GET_DBS = (
+    db_get_db,
+    product_get_db,
+    suppliers_get_db,
+    transactions_get_db,
+    reports_get_db,
+    audit_get_db,
+)
 
-client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def _db_setup():
+    saved = dict(app.dependency_overrides)
 
-def setup_database():
+    for _get_db in GET_DBS:
+        app.dependency_overrides[_get_db] = override_get_db
+
     Base.metadata.create_all(bind=engine)
 
+    yield
 
-def teardown_database():
     Base.metadata.drop_all(bind=engine)
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(saved)
+
+
+client = TestClient(app)
 
 
 def create_product_db(name="Widget", quantity=100):
@@ -71,8 +93,6 @@ def create_supplier_http(name="ACME Corp", email="acme@example.com"):
 
 # TC-Audit-01.1 / TC-Sec-05.1
 def test_adding_supplier_is_audited():
-    setup_database()
-
     before = len(client.get("/audit-logs/", headers=ADMIN_HEADERS).json())
 
     create_supplier_http()
@@ -88,13 +108,9 @@ def test_adding_supplier_is_audited():
     assert latest["entity_id"] is not None
     assert latest["timestamp"] is not None
 
-    teardown_database()
-
 
 # TC-Sec-05.2
 def test_employee_sale_audited_with_employee_id():
-    setup_database()
-
     product_id = create_product_db(quantity=100)
 
     client.post(
@@ -117,13 +133,9 @@ def test_employee_sale_audited_with_employee_id():
     assert sale_logs[0]["user_id"] == 2
     assert sale_logs[0]["timestamp"] is not None
 
-    teardown_database()
-
 
 # TC-Audit-01.3
 def test_filter_by_user_entity_and_action():
-    setup_database()
-
     create_supplier_http()
     create_supplier_http(name="Other", email="other@example.com")
     product_id = create_product_db(quantity=100)
@@ -148,51 +160,37 @@ def test_filter_by_user_entity_and_action():
     by_action = client.get("/audit-logs/?action=create_supplier", headers=ADMIN_HEADERS).json()
     assert all(log["action"] == "create_supplier" for log in by_action)
 
-    teardown_database()
-
 
 # TC-Sec-05.3
 def test_employee_audit_logs_403():
-    setup_database()
-
     response = client.get("/audit-logs/", headers=EMPLOYEE_HEADERS)
 
     assert response.status_code == 403
 
-    teardown_database()
-
 
 # TC-Sec-05.4
 def test_no_login_audit_logs_401():
-    setup_database()
-
     response = client.get("/audit-logs/")
 
     assert response.status_code == 401
 
-    teardown_database()
-
 
 # TC-Sec-05.5
 def test_no_routes_to_change_or_delete_audit_records():
-    setup_database()
-
+    # POST is not allowed on the existing read-only route
     response = client.post("/audit-logs/", json={}, headers=ADMIN_HEADERS)
     assert response.status_code == 405
 
+    # No routes exist to change or delete audit records
     response = client.put("/audit-logs/1", json={}, headers=ADMIN_HEADERS)
-    assert response.status_code == 405
+    assert response.status_code == 404
 
     response = client.delete("/audit-logs/1", headers=ADMIN_HEADERS)
-    assert response.status_code == 405
-
-    teardown_database()
+    assert response.status_code == 404
 
 
 # TC-Sec-05.6
 def test_every_audited_operation_produces_exactly_one_row():
-    setup_database()
-
     before = len(client.get("/audit-logs/", headers=ADMIN_HEADERS).json())
 
     create_supplier_http()
@@ -236,5 +234,3 @@ def test_every_audited_operation_produces_exactly_one_row():
     for log in logs[before:]:
         assert log["user_id"] is not None
         assert log["timestamp"] is not None
-
-    teardown_database()

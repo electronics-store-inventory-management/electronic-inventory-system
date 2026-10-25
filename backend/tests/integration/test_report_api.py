@@ -2,11 +2,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+import pytest
 
-from app.database.database import Base
+from app.database.database import Base, get_db as db_get_db
 from app.main import app
 from app.models.product import Product
-from app.routers.reports import get_db
+from app.routers.audit_logs import get_db as audit_get_db
+from app.routers.product import get_db as product_get_db
+from app.routers.reports import get_db as reports_get_db
+from app.routers.suppliers import get_db as suppliers_get_db
+from app.routers.transactions import get_db as transactions_get_db
 
 from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
 
@@ -34,17 +39,34 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+GET_DBS = (
+    db_get_db,
+    product_get_db,
+    suppliers_get_db,
+    transactions_get_db,
+    reports_get_db,
+    audit_get_db,
+)
 
-client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def _db_setup():
+    saved = dict(app.dependency_overrides)
 
-def setup_database():
+    for _get_db in GET_DBS:
+        app.dependency_overrides[_get_db] = override_get_db
+
     Base.metadata.create_all(bind=engine)
 
+    yield
 
-def teardown_database():
     Base.metadata.drop_all(bind=engine)
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(saved)
+
+
+client = TestClient(app)
 
 
 def create_product_db(name, quantity, min_stock_level=0):
@@ -66,8 +88,6 @@ def create_product_db(name, quantity, min_stock_level=0):
 
 # TC-Report-01.1
 def test_admin_gets_all_products_and_low_stock_list():
-    setup_database()
-
     create_product_db("Low Item", quantity=2, min_stock_level=10)
     create_product_db("At Min Item", quantity=10, min_stock_level=10)
     create_product_db("OK Item", quantity=50, min_stock_level=5)
@@ -82,13 +102,9 @@ def test_admin_gets_all_products_and_low_stock_list():
     assert len(data["low_stock"]) == 1
     assert data["low_stock"][0]["name"] == "Low Item"
 
-    teardown_database()
-
 
 # TC-Report-01.2
 def test_report_reflects_a_sale():
-    setup_database()
-
     product_id = create_product_db("Sale Item", quantity=20)
 
     client.post(
@@ -111,13 +127,9 @@ def test_report_reflects_a_sale():
     product = next(p for p in data["products"] if p["id"] == product_id)
     assert product["quantity"] == 15
 
-    teardown_database()
-
 
 # TC-Report-01.3
 def test_empty_inventory_returns_200():
-    setup_database()
-
     response = client.get("/reports/", headers=ADMIN_HEADERS)
 
     assert response.status_code == 200
@@ -126,26 +138,16 @@ def test_empty_inventory_returns_200():
     assert data["products"] == []
     assert data["low_stock"] == []
 
-    teardown_database()
-
 
 # TC-Report-01.4
 def test_employee_gets_403():
-    setup_database()
-
     response = client.get("/reports/", headers=EMPLOYEE_HEADERS)
 
     assert response.status_code == 403
 
-    teardown_database()
-
 
 # TC-Report-01.5
 def test_no_login_gets_401():
-    setup_database()
-
     response = client.get("/reports/")
 
     assert response.status_code == 401
-
-    teardown_database()

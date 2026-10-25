@@ -2,12 +2,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+import pytest
 
-from app.database.database import Base
+from app.database.database import Base, get_db as db_get_db
 from app.main import app
 from app.models.product import Product
 from app.models.supplier import Supplier
-from app.routers.suppliers import get_db
+from app.routers.audit_logs import get_db as audit_get_db
+from app.routers.product import get_db as product_get_db
+from app.routers.reports import get_db as reports_get_db
+from app.routers.suppliers import get_db as suppliers_get_db
+from app.routers.transactions import get_db as transactions_get_db
 
 from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
 
@@ -35,17 +40,34 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+GET_DBS = (
+    db_get_db,
+    product_get_db,
+    suppliers_get_db,
+    transactions_get_db,
+    reports_get_db,
+    audit_get_db,
+)
 
-client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def _db_setup():
+    saved = dict(app.dependency_overrides)
 
-def setup_database():
+    for _get_db in GET_DBS:
+        app.dependency_overrides[_get_db] = override_get_db
+
     Base.metadata.create_all(bind=engine)
 
+    yield
 
-def teardown_database():
     Base.metadata.drop_all(bind=engine)
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(saved)
+
+
+client = TestClient(app)
 
 
 def create_product_db(name="Widget", quantity=100):
@@ -71,8 +93,6 @@ def create_supplier_http(name="ACME Corp", email="acme@example.com"):
 
 # TC-Supplier-01.1
 def test_create_supplier_201_admin():
-    setup_database()
-
     response = client.post(
         "/suppliers/",
         json={
@@ -91,13 +111,9 @@ def test_create_supplier_201_admin():
     assert data["email"] == "acme@example.com"
     assert "id" in data
 
-    teardown_database()
-
 
 # TC-Supplier-01.2
 def test_create_supplier_422_invalid_body():
-    setup_database()
-
     response = client.post(
         "/suppliers/",
         json={
@@ -109,13 +125,9 @@ def test_create_supplier_422_invalid_body():
 
     assert response.status_code == 422
 
-    teardown_database()
-
 
 # TC-Supplier-01.3
 def test_create_supplier_409_duplicate_name():
-    setup_database()
-
     client.post(
         "/suppliers/",
         json={"name": "ACME Corp", "email": "acme@example.com"},
@@ -130,13 +142,9 @@ def test_create_supplier_409_duplicate_name():
 
     assert response.status_code == 409
 
-    teardown_database()
-
 
 # TC-Supplier-01.4
 def test_update_supplier_200_admin():
-    setup_database()
-
     supplier_id = create_supplier_http()
 
     response = client.put(
@@ -151,13 +159,9 @@ def test_update_supplier_200_admin():
     assert data["id"] == supplier_id
     assert data["name"] == "New Name"
 
-    teardown_database()
-
 
 # TC-Supplier-01.5
 def test_update_supplier_404_missing():
-    setup_database()
-
     response = client.put(
         "/suppliers/9999",
         json={"name": "New Name"},
@@ -166,13 +170,9 @@ def test_update_supplier_404_missing():
 
     assert response.status_code == 404
 
-    teardown_database()
-
 
 # TC-Supplier-01.6
 def test_employee_create_update_403():
-    setup_database()
-
     create_response = client.post(
         "/suppliers/",
         json={"name": "ACME Corp", "email": "acme@example.com"},
@@ -189,13 +189,9 @@ def test_employee_create_update_403():
     )
     assert update_response.status_code == 403
 
-    teardown_database()
-
 
 # TC-Supplier-01.7
 def test_create_update_without_login_401():
-    setup_database()
-
     response = client.post(
         "/suppliers/",
         json={"name": "ACME Corp", "email": "acme@example.com"},
@@ -208,13 +204,9 @@ def test_create_update_without_login_401():
     )
     assert response.status_code == 401
 
-    teardown_database()
-
 
 # TC-Supplier-02.1
 def test_employee_view_suppliers_200():
-    setup_database()
-
     create_supplier_http()
 
     response = client.get("/suppliers/", headers=EMPLOYEE_HEADERS)
@@ -222,13 +214,9 @@ def test_employee_view_suppliers_200():
     assert response.status_code == 200
     assert len(response.json()) == 1
 
-    teardown_database()
-
 
 # TC-Supplier-02.2
 def test_employee_view_supplier_details_200():
-    setup_database()
-
     supplier_id = create_supplier_http()
 
     response = client.get(f"/suppliers/{supplier_id}", headers=EMPLOYEE_HEADERS)
@@ -236,13 +224,9 @@ def test_employee_view_supplier_details_200():
     assert response.status_code == 200
     assert response.json()["id"] == supplier_id
 
-    teardown_database()
-
 
 # TC-Supplier-02.3
 def test_link_product_201_admin():
-    setup_database()
-
     product_id = create_product_db()
     supplier_id = create_supplier_http()
 
@@ -253,13 +237,9 @@ def test_link_product_201_admin():
 
     assert response.status_code == 201
 
-    teardown_database()
-
 
 # TC-Supplier-02.4
 def test_link_product_409_duplicate():
-    setup_database()
-
     product_id = create_product_db()
     supplier_id = create_supplier_http()
 
@@ -275,13 +255,9 @@ def test_link_product_409_duplicate():
 
     assert response.status_code == 409
 
-    teardown_database()
-
 
 # TC-Supplier-02.5
 def test_link_product_404_unknown():
-    setup_database()
-
     supplier_id = create_supplier_http()
 
     response = client.post(
@@ -297,5 +273,3 @@ def test_link_product_404_unknown():
         headers=ADMIN_HEADERS,
     )
     assert response.status_code == 404
-
-    teardown_database()
