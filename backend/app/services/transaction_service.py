@@ -34,10 +34,18 @@ def record_transaction(
     if quantity <= 0:
         raise BadRequestError("Quantity must be greater than zero")
 
-    product = db.query(Product).filter(Product.id == transaction_data.product_id).first()
+
+    product = (
+    db.query(Product)
+    .filter(Product.id == transaction_data.product_id)
+    .with_for_update()
+    .first()
+)
 
     if product is None:
         raise NotFoundError("Product not found")
+
+
 
     if transaction_type == "DEDUCT" and product.quantity < quantity:
         raise BadRequestError("Insufficient stock")

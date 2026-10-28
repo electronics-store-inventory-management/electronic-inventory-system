@@ -101,6 +101,12 @@ def test_restock_shows_up_in_transactions():
     response = client.get("/transactions/", headers=ADMIN_HEADERS)
 
     assert response.status_code == 200
+    product_response = client.get(
+        f"/products/{product_id}",
+        headers=ADMIN_HEADERS,
+    )
+    assert product_response.status_code == 200
+    assert product_response.json()["quantity"] == 120
     data = response.json()
     assert len(data) == 1
     assert data[0]["transaction_type"] == "ADD"
@@ -130,6 +136,12 @@ def test_sale_creates_deduct_row():
     data = response.json()
     assert data["transaction_type"] == "DEDUCT"
     assert data["quantity"] == 4
+    product_response = client.get(
+        f"/products/{product_id}",
+        headers=ADMIN_HEADERS,
+    )
+    assert product_response.status_code == 200
+    assert product_response.json()["quantity"] == 96
 
 
 # TC-Transaction-01.3
