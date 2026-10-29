@@ -72,6 +72,51 @@ def test_create_product(db):
     assert product.category == "Laptop"
     assert product.price == Decimal("50000.00")
     assert product.quantity == 10
+    assert product.min_stock_level == 0
+
+
+def test_create_and_update_product_minimum_stock_level(db):
+    """Verify the service persists a threshold on creation and updates it later."""
+    product = create_product(
+        db,
+        ProductCreate(
+            name="Threshold Laptop",
+            category="Laptop",
+            price=Decimal("50000.00"),
+            quantity=10,
+            min_stock_level=4,
+        ),
+    )
+    # Save the pre-update value because SQLAlchemy refreshes this same ORM object.
+    original_minimum = product.min_stock_level
+
+    updated = update_product(
+        db,
+        product.id,
+        ProductUpdate(min_stock_level=6),
+    )
+
+    assert original_minimum == 4
+    assert updated.min_stock_level == 6
+
+
+@pytest.mark.parametrize("field", ["quantity", "min_stock_level"])
+def test_product_schema_rejects_negative_stock_values(field):
+    """Verify request models reject negative quantity and threshold values."""
+    values = {
+        "name": "Invalid Product",
+        "category": "Laptop",
+        "price": Decimal("100.00"),
+        "quantity": 1,
+        "min_stock_level": 1,
+    }
+    values[field] = -1
+
+    with pytest.raises(Exception):
+        ProductCreate(**values)
+
+    with pytest.raises(Exception):
+        ProductUpdate(**{field: -1})
 
 
 def test_get_product(db):

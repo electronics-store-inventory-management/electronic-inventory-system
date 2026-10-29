@@ -61,6 +61,15 @@ def test_product_below_minimum_is_low_stock(db):
     assert low_stock[0].name == "Low Item"
 
 
+def test_product_above_minimum_is_not_low_stock(db):
+    """A quantity greater than its threshold must stay out of low-stock results."""
+    create_test_product(db, name="Above Minimum", quantity=11, min_stock_level=10)
+
+    report = generate_report(db)
+
+    assert report.low_stock == []
+
+
 # TC-Report-01.2
 def test_product_exactly_at_minimum_is_not_low(db):
     create_test_product(db, name="At Min Item", quantity=10, min_stock_level=10)
