@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from app.core.auth import get_current_user, require_admin
 from sqlalchemy.orm import Session
 
 from app.database.database import SessionLocal
@@ -35,6 +36,7 @@ def get_db():
 def add_product(
     product_data: ProductCreate,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     return create_product(db, product_data)
 
@@ -48,6 +50,7 @@ def search_products(
     category: str | None = Query(default=None),
     product_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     return get_products(
         db,
@@ -64,6 +67,7 @@ def search_products(
 def view_product(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     product = get_product(db, product_id)
 
@@ -84,6 +88,7 @@ def update_product_details(
     product_id: int,
     product_data: ProductUpdate,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     product = update_product(
         db,
@@ -107,6 +112,7 @@ def update_product_details(
 def remove_product(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     product = delete_product(db, product_id)
 
