@@ -341,6 +341,23 @@
   cursor: pointer;
 }
 
+.delete-product-button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #f0d0d0;
+  border-radius: 7px;
+  color: #963d3d;
+  background: #fffafa;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-product-button:hover {
+  border-color: #dfa9a9;
+  background: #fff1f1;
+}
+
 .edit-product-button:hover {
   border-color: #a9d0b9;
   color: #286143;
@@ -353,7 +370,8 @@
 }
 
 .view-details-button:focus-visible,
-.edit-product-button:focus-visible {
+.edit-product-button:focus-visible,
+.delete-product-button:focus-visible {
   outline: 3px solid rgb(90 156 127 / 35%);
   outline-offset: 2px;
 }
@@ -444,6 +462,77 @@
 
 .product-details-modal {
   width: min(100%, 520px);
+}
+
+.delete-confirmation-modal {
+  width: min(100%, 480px);
+}
+
+.delete-confirmation-content {
+  display: grid;
+  gap: 16px;
+  padding: 22px 25px 25px;
+}
+
+.delete-confirmation-content > p:first-child {
+  color: #687487;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.delete-product-identity {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e8ecf3;
+  border-radius: 9px;
+  background: #fbfcfe;
+}
+
+.delete-product-identity strong {
+  color: #29364a;
+  font-size: 14px;
+}
+
+.delete-product-identity span {
+  color: #8993a4;
+  font-size: 11px;
+}
+
+.delete-warning {
+  color: #963d3d;
+  font-size: 11px;
+}
+
+.delete-progress {
+  color: #687487;
+  font-size: 12px;
+}
+
+.confirm-delete-button {
+  min-height: 39px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: #a94444;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.confirm-delete-button:hover {
+  background: #8f3535;
+}
+
+.confirm-delete-button:focus-visible {
+  outline: 3px solid rgb(169 68 68 / 30%);
+  outline-offset: 2px;
+}
+
+.confirm-delete-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .product-details-list {
@@ -670,6 +759,11 @@
 
   .product-modal-header,
   .product-form {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .delete-confirmation-content {
     padding-right: 17px;
     padding-left: 17px;
   }

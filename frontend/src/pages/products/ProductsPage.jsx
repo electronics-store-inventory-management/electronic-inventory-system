@@ -64,6 +64,10 @@ export default function ProductsPage() {
   const [editErrors, setEditErrors] = useState({});
   const [editError, setEditError] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [productDetails, setProductDetails] = useState({
     isOpen: false,
@@ -75,6 +79,8 @@ export default function ProductsPage() {
   const addButtonRef = useRef(null);
   const editNameInputRef = useRef(null);
   const editTriggerRef = useRef(null);
+  const deleteCloseButtonRef = useRef(null);
+  const deleteTriggerRef = useRef(null);
   const modalRef = useRef(null);
   const nameInputRef = useRef(null);
   const detailCloseButtonRef = useRef(null);
@@ -123,16 +129,28 @@ export default function ProductsPage() {
     requestAnimationFrame(() => editTriggerRef.current?.focus());
   }, [updating]);
 
+  const closeDeleteDialog = useCallback(() => {
+    if (deleting) return;
+    setIsDeleteOpen(false);
+    setProductToDelete(null);
+    setDeleteError("");
+    requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+  }, [deleting]);
+
   useEffect(() => {
-    if (!isAddOpen && !isEditOpen && !productDetails.isOpen) return undefined;
+    if (!isAddOpen && !isEditOpen && !isDeleteOpen && !productDetails.isOpen) {
+      return undefined;
+    }
     if (isAddOpen) nameInputRef.current?.focus();
     else if (isEditOpen) editNameInputRef.current?.focus();
+    else if (isDeleteOpen) deleteCloseButtonRef.current?.focus();
     else detailCloseButtonRef.current?.focus();
 
     function handleKeyDown(event) {
       if (event.key === "Escape") {
         if (isAddOpen && !submitting) closeAddForm();
         else if (isEditOpen && !updating) closeEditForm();
+        else if (isDeleteOpen && !deleting) closeDeleteDialog();
         else if (productDetails.isOpen) closeProductDetails();
       }
       if (event.key === "Tab") {
@@ -156,12 +174,15 @@ export default function ProductsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     closeAddForm,
+    closeDeleteDialog,
     closeEditForm,
     closeProductDetails,
     isAddOpen,
+    isDeleteOpen,
     isEditOpen,
     productDetails.isOpen,
     submitting,
+    deleting,
     updating,
   ]);
 
@@ -293,6 +314,42 @@ export default function ProductsPage() {
       setEditError(err.message || "Unable to update product. Please try again.");
     } finally {
       setUpdating(false);
+    }
+  }
+
+  function openDeleteDialog(product, trigger) {
+    deleteTriggerRef.current = trigger;
+    setSuccessMessage("");
+    setProductToDelete(product);
+    setDeleteError("");
+    setIsDeleteOpen(true);
+  }
+
+  async function handleDeleteProduct() {
+    if (!productToDelete) return;
+
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await productService.remove(productToDelete.id);
+      setIsDeleteOpen(false);
+      setProductToDelete(null);
+      setSuccessMessage("Product removed from inventory.");
+      const refreshed = await loadProducts({ name: search, category });
+      if (!refreshed) {
+        setSuccessMessage(
+          "Product removed successfully, but the catalogue could not refresh. Try Refresh list.",
+        );
+      }
+      requestAnimationFrame(() => addButtonRef.current?.focus());
+    } catch (err) {
+      setDeleteError(
+        err.message === "Product not found"
+          ? "This product no longer exists. Close this dialog and refresh the catalogue."
+          : err.message || "Unable to remove product. Please try again.",
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -542,6 +599,16 @@ export default function ProductsPage() {
                           }
                         >
                           Edit
+                        </button>
+                        <button
+                          className="delete-product-button"
+                          type="button"
+                          aria-label={`Delete ${product.name}`}
+                          onClick={(event) =>
+                            openDeleteDialog(product, event.currentTarget)
+                          }
+                        >
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -821,6 +888,79 @@ export default function ProductsPage() {
                 </button>
               </footer>
             </form>
+          </section>
+        </div>
+      )}
+
+      {isDeleteOpen && productToDelete && (
+        <div className="modal-backdrop">
+          <section
+            ref={modalRef}
+            className="product-modal delete-confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-product-title"
+            aria-describedby="delete-product-description"
+          >
+            <header className="product-modal-header">
+              <div>
+                <p className="eyebrow">INVENTORY ACTION</p>
+                <h2 id="delete-product-title">Remove product?</h2>
+              </div>
+              <button
+                ref={deleteCloseButtonRef}
+                className="modal-close-button"
+                type="button"
+                aria-label="Close delete confirmation"
+                onClick={closeDeleteDialog}
+                disabled={deleting}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="delete-confirmation-content">
+              <p id="delete-product-description">
+                You are about to remove this product from inventory:
+              </p>
+              <div className="delete-product-identity">
+                <strong>{productToDelete.name}</strong>
+                <span>
+                  PRD-{String(productToDelete.id).padStart(4, "0")} · {productToDelete.category}
+                </span>
+              </div>
+              <p className="delete-warning">
+                This action cannot be undone.
+              </p>
+              {deleteError && (
+                <div className="form-error" role="alert">
+                  {deleteError}
+                </div>
+              )}
+              {deleting && (
+                <p className="delete-progress" role="status">
+                  Removing product…
+                </p>
+              )}
+              <footer className="product-form-actions">
+                <button
+                  className="reset-button"
+                  type="button"
+                  onClick={closeDeleteDialog}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="confirm-delete-button"
+                  type="button"
+                  onClick={handleDeleteProduct}
+                  disabled={deleting}
+                >
+                  {deleting ? "Removing…" : "Confirm delete"}
+                </button>
+              </footer>
+            </div>
           </section>
         </div>
       )}
