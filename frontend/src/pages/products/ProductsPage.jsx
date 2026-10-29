@@ -58,6 +58,12 @@ export default function ProductsPage() {
   const [formErrors, setFormErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [editProduct, setEditProduct] = useState(EMPTY_PRODUCT);
+  const [editErrors, setEditErrors] = useState({});
+  const [editError, setEditError] = useState("");
+  const [updating, setUpdating] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [productDetails, setProductDetails] = useState({
     isOpen: false,
@@ -67,6 +73,8 @@ export default function ProductsPage() {
     error: "",
   });
   const addButtonRef = useRef(null);
+  const editNameInputRef = useRef(null);
+  const editTriggerRef = useRef(null);
   const modalRef = useRef(null);
   const nameInputRef = useRef(null);
   const detailCloseButtonRef = useRef(null);
@@ -105,14 +113,26 @@ export default function ProductsPage() {
     requestAnimationFrame(() => detailTriggerRef.current?.focus());
   }, []);
 
+  const closeEditForm = useCallback(() => {
+    if (updating) return;
+    setIsEditOpen(false);
+    setEditingProductId(null);
+    setEditProduct(EMPTY_PRODUCT);
+    setEditErrors({});
+    setEditError("");
+    requestAnimationFrame(() => editTriggerRef.current?.focus());
+  }, [updating]);
+
   useEffect(() => {
-    if (!isAddOpen && !productDetails.isOpen) return undefined;
+    if (!isAddOpen && !isEditOpen && !productDetails.isOpen) return undefined;
     if (isAddOpen) nameInputRef.current?.focus();
+    else if (isEditOpen) editNameInputRef.current?.focus();
     else detailCloseButtonRef.current?.focus();
 
     function handleKeyDown(event) {
       if (event.key === "Escape") {
         if (isAddOpen && !submitting) closeAddForm();
+        else if (isEditOpen && !updating) closeEditForm();
         else if (productDetails.isOpen) closeProductDetails();
       }
       if (event.key === "Tab") {
@@ -136,10 +156,13 @@ export default function ProductsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     closeAddForm,
+    closeEditForm,
     closeProductDetails,
     isAddOpen,
+    isEditOpen,
     productDetails.isOpen,
     submitting,
+    updating,
   ]);
 
   async function openProductDetails(productId, trigger) {
@@ -220,6 +243,56 @@ export default function ProductsPage() {
       setSubmitError(err.message || "Unable to add product. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openEditForm(product, trigger) {
+    editTriggerRef.current = trigger;
+    setSuccessMessage("");
+    setEditingProductId(product.id);
+    setEditProduct({
+      name: product.name,
+      category: product.category,
+      price: String(product.price),
+      quantity: String(product.quantity),
+    });
+    setEditErrors({});
+    setEditError("");
+    setIsEditOpen(true);
+  }
+
+  async function handleUpdateProduct(event) {
+    event.preventDefault();
+    const errors = validateProduct(editProduct);
+    setEditErrors(errors);
+    setEditError("");
+    if (Object.keys(errors).length > 0) return;
+
+    setUpdating(true);
+    try {
+      await productService.update(editingProductId, {
+        name: editProduct.name.trim(),
+        category: editProduct.category.trim(),
+        price: editProduct.price.trim(),
+        quantity: Number(editProduct.quantity),
+      });
+
+      setIsEditOpen(false);
+      setEditingProductId(null);
+      setEditProduct(EMPTY_PRODUCT);
+      setEditErrors({});
+      setSuccessMessage("Product updated successfully.");
+      const refreshed = await loadProducts({ name: search, category });
+      if (!refreshed) {
+        setSuccessMessage(
+          "Product updated successfully, but the catalogue could not refresh. Try Refresh list.",
+        );
+      }
+      requestAnimationFrame(() => editTriggerRef.current?.focus());
+    } catch (err) {
+      setEditError(err.message || "Unable to update product. Please try again.");
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -449,16 +522,28 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td>
-                      <button
-                        className="view-details-button"
-                        type="button"
-                        aria-label={`View details for ${product.name}`}
-                        onClick={(event) =>
-                          openProductDetails(product.id, event.currentTarget)
-                        }
-                      >
-                        View details
-                      </button>
+                      <div className="product-row-actions">
+                        <button
+                          className="view-details-button"
+                          type="button"
+                          aria-label={`View details for ${product.name}`}
+                          onClick={(event) =>
+                            openProductDetails(product.id, event.currentTarget)
+                          }
+                        >
+                          View details
+                        </button>
+                        <button
+                          className="edit-product-button"
+                          type="button"
+                          aria-label={`Edit ${product.name}`}
+                          onClick={(event) =>
+                            openEditForm(product, event.currentTarget)
+                          }
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -604,6 +689,135 @@ export default function ProductsPage() {
                 </button>
                 <button className="search-button" type="submit" disabled={submitting}>
                   {submitting ? "Adding…" : "Add product"}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {isEditOpen && (
+        <div className="modal-backdrop">
+          <section
+            ref={modalRef}
+            className="product-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-product-title"
+            aria-describedby="edit-product-description"
+          >
+            <header className="product-modal-header">
+              <div>
+                <p className="eyebrow">PRODUCT CATALOGUE</p>
+                <h2 id="edit-product-title">Edit product</h2>
+                <p id="edit-product-description">
+                  Update the details for PRD-{String(editingProductId).padStart(4, "0")}.
+                </p>
+              </div>
+              <button
+                className="modal-close-button"
+                type="button"
+                aria-label="Close edit product form"
+                onClick={closeEditForm}
+                disabled={updating}
+              >
+                ×
+              </button>
+            </header>
+
+            <form className="product-form" onSubmit={handleUpdateProduct} noValidate>
+              {editError && (
+                <div className="form-error" role="alert">
+                  {editError}
+                </div>
+              )}
+              <label className="product-form-field" htmlFor="edit-product-name">
+                <span>Product name <span aria-hidden="true">*</span></span>
+                <input
+                  ref={editNameInputRef}
+                  id="edit-product-name"
+                  name="name"
+                  type="text"
+                  value={editProduct.name}
+                  required
+                  maxLength={100}
+                  aria-invalid={Boolean(editErrors.name)}
+                  aria-describedby={editErrors.name ? "edit-product-name-error" : undefined}
+                  onChange={(event) =>
+                    setEditProduct({ ...editProduct, name: event.target.value })
+                  }
+                />
+                {editErrors.name && <small id="edit-product-name-error">{editErrors.name}</small>}
+              </label>
+
+              <label className="product-form-field" htmlFor="edit-product-category">
+                <span>Category <span aria-hidden="true">*</span></span>
+                <input
+                  id="edit-product-category"
+                  name="category"
+                  type="text"
+                  value={editProduct.category}
+                  required
+                  maxLength={100}
+                  aria-invalid={Boolean(editErrors.category)}
+                  aria-describedby={editErrors.category ? "edit-product-category-error" : undefined}
+                  onChange={(event) =>
+                    setEditProduct({ ...editProduct, category: event.target.value })
+                  }
+                />
+                {editErrors.category && <small id="edit-product-category-error">{editErrors.category}</small>}
+              </label>
+
+              <div className="product-form-row">
+                <label className="product-form-field" htmlFor="edit-product-price">
+                  <span>Price (INR) <span aria-hidden="true">*</span></span>
+                  <input
+                    id="edit-product-price"
+                    name="price"
+                    type="text"
+                    inputMode="decimal"
+                    value={editProduct.price}
+                    required
+                    aria-invalid={Boolean(editErrors.price)}
+                    aria-describedby={editErrors.price ? "edit-product-price-help edit-product-price-error" : "edit-product-price-help"}
+                    onChange={(event) =>
+                      setEditProduct({ ...editProduct, price: event.target.value })
+                    }
+                  />
+                  <small id="edit-product-price-help">Greater than 0, up to 2 decimal places.</small>
+                  {editErrors.price && <small id="edit-product-price-error">{editErrors.price}</small>}
+                </label>
+
+                <label className="product-form-field" htmlFor="edit-product-quantity">
+                  <span>Quantity <span aria-hidden="true">*</span></span>
+                  <input
+                    id="edit-product-quantity"
+                    name="quantity"
+                    type="text"
+                    inputMode="numeric"
+                    value={editProduct.quantity}
+                    required
+                    aria-invalid={Boolean(editErrors.quantity)}
+                    aria-describedby={editErrors.quantity ? "edit-product-quantity-error" : undefined}
+                    onChange={(event) =>
+                      setEditProduct({ ...editProduct, quantity: event.target.value })
+                    }
+                  />
+                  {editErrors.quantity && <small id="edit-product-quantity-error">{editErrors.quantity}</small>}
+                </label>
+              </div>
+
+              <footer className="product-form-actions">
+                <button
+                  className="reset-button"
+                  type="button"
+                  onClick={closeEditForm}
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button className="search-button" type="submit" disabled={updating}>
+                  {updating ? "Saving…" : "Save changes"}
                 </button>
               </footer>
             </form>

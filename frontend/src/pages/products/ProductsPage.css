@@ -323,12 +323,37 @@
   cursor: pointer;
 }
 
+.product-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.edit-product-button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ed;
+  border-radius: 7px;
+  color: #596579;
+  background: white;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-product-button:hover {
+  border-color: #a9d0b9;
+  color: #286143;
+  background: #f5fbf7;
+}
+
 .view-details-button:hover {
   border-color: #a9d0b9;
   background: #eaf5ee;
 }
 
-.view-details-button:focus-visible {
+.view-details-button:focus-visible,
+.edit-product-button:focus-visible {
   outline: 3px solid rgb(90 156 127 / 35%);
   outline-offset: 2px;
 }
