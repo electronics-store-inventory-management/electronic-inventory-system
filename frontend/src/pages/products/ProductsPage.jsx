@@ -59,9 +59,19 @@ export default function ProductsPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [productDetails, setProductDetails] = useState({
+    isOpen: false,
+    productId: null,
+    loading: false,
+    product: null,
+    error: "",
+  });
   const addButtonRef = useRef(null);
   const modalRef = useRef(null);
   const nameInputRef = useRef(null);
+  const detailCloseButtonRef = useRef(null);
+  const detailTriggerRef = useRef(null);
+  const detailRequestRef = useRef(0);
 
   const loadProducts = useCallback(async (filters = {}) => {
     setLoading(true);
@@ -83,12 +93,28 @@ export default function ProductsPage() {
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }, [submitting]);
 
+  const closeProductDetails = useCallback(() => {
+    detailRequestRef.current += 1;
+    setProductDetails({
+      isOpen: false,
+      productId: null,
+      loading: false,
+      product: null,
+      error: "",
+    });
+    requestAnimationFrame(() => detailTriggerRef.current?.focus());
+  }, []);
+
   useEffect(() => {
-    if (!isAddOpen) return undefined;
-    nameInputRef.current?.focus();
+    if (!isAddOpen && !productDetails.isOpen) return undefined;
+    if (isAddOpen) nameInputRef.current?.focus();
+    else detailCloseButtonRef.current?.focus();
 
     function handleKeyDown(event) {
-      if (event.key === "Escape" && !submitting) closeAddForm();
+      if (event.key === "Escape") {
+        if (isAddOpen && !submitting) closeAddForm();
+        else if (productDetails.isOpen) closeProductDetails();
+      }
       if (event.key === "Tab") {
         const focusable = modalRef.current?.querySelectorAll(
           'button:not([disabled]), input:not([disabled])',
@@ -108,7 +134,50 @@ export default function ProductsPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeAddForm, isAddOpen, submitting]);
+  }, [
+    closeAddForm,
+    closeProductDetails,
+    isAddOpen,
+    productDetails.isOpen,
+    submitting,
+  ]);
+
+  async function openProductDetails(productId, trigger) {
+    detailTriggerRef.current = trigger ?? detailTriggerRef.current;
+    const requestId = detailRequestRef.current + 1;
+    detailRequestRef.current = requestId;
+    setProductDetails({
+      isOpen: true,
+      productId,
+      loading: true,
+      product: null,
+      error: "",
+    });
+
+    try {
+      const product = await productService.get(productId);
+      if (requestId !== detailRequestRef.current) return;
+      if (Number(product.id) !== Number(productId)) {
+        throw new Error("The server returned details for a different product.");
+      }
+      setProductDetails({
+        isOpen: true,
+        productId,
+        loading: false,
+        product,
+        error: "",
+      });
+    } catch (err) {
+      if (requestId !== detailRequestRef.current) return;
+      setProductDetails({
+        isOpen: true,
+        productId,
+        loading: false,
+        product: null,
+        error: err.message || "Unable to load product details.",
+      });
+    }
+  }
 
   function openAddForm() {
     setSuccessMessage("");
@@ -380,9 +449,16 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td>
-                      <span className="action-placeholder">
-                        Actions coming next
-                      </span>
+                      <button
+                        className="view-details-button"
+                        type="button"
+                        aria-label={`View details for ${product.name}`}
+                        onClick={(event) =>
+                          openProductDetails(product.id, event.currentTarget)
+                        }
+                      >
+                        View details
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -531,6 +607,86 @@ export default function ProductsPage() {
                 </button>
               </footer>
             </form>
+          </section>
+        </div>
+      )}
+
+      {productDetails.isOpen && (
+        <div className="modal-backdrop">
+          <section
+            ref={modalRef}
+            className="product-modal product-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-details-title"
+            aria-describedby="product-details-description"
+          >
+            <header className="product-modal-header">
+              <div>
+                <p className="eyebrow">PRODUCT CATALOGUE</p>
+                <h2 id="product-details-title">Product details</h2>
+                <p id="product-details-description">
+                  Complete information for the selected product.
+                </p>
+              </div>
+              <button
+                ref={detailCloseButtonRef}
+                className="modal-close-button"
+                type="button"
+                aria-label="Close product details"
+                onClick={closeProductDetails}
+              >
+                ×
+              </button>
+            </header>
+
+            {productDetails.loading ? (
+              <div className="product-details-state" role="status">
+                Loading product details…
+              </div>
+            ) : productDetails.error ? (
+              <div className="product-details-state product-details-error">
+                <p role="alert">{productDetails.error}</p>
+                <button
+                  className="search-button"
+                  type="button"
+                  onClick={() =>
+                    openProductDetails(productDetails.productId)
+                  }
+                >
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <dl className="product-details-list">
+                <div>
+                  <dt>Product ID</dt>
+                  <dd>PRD-{String(productDetails.product.id).padStart(4, "0")}</dd>
+                </div>
+                <div>
+                  <dt>Product name</dt>
+                  <dd>{productDetails.product.name}</dd>
+                </div>
+                <div>
+                  <dt>Category</dt>
+                  <dd>{productDetails.product.category}</dd>
+                </div>
+                <div>
+                  <dt>Unit price</dt>
+                  <dd>
+                    {Number(productDetails.product.price).toLocaleString("en-IN", {
+                      style: "currency",
+                      currency: "INR",
+                      maximumFractionDigits: 2,
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Available quantity</dt>
+                  <dd>{productDetails.product.quantity.toLocaleString("en-IN")}</dd>
+                </div>
+              </dl>
+            )}
           </section>
         </div>
       )}
