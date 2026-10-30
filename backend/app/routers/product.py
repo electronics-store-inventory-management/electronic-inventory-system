@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_admin
 from app.database.database import SessionLocal
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.report import LowStockProduct
+from app.services.report_service import get_low_stock_products
 from app.services.product_service import (
     create_product,
     get_product,
@@ -55,6 +58,19 @@ def search_products(
         category=category,
         product_id=product_id,
     )
+
+
+@router.get(
+    "/low-stock",
+    response_model=list[LowStockProduct],
+)
+def list_low_stock_products(
+    db: Session = Depends(get_db),
+    # Inventory reports are admin-only, so protect this related inventory view the same way.
+    current_user: dict = Depends(require_admin),
+):
+    """List products with less stock than their configured minimum level."""
+    return get_low_stock_products(db)
 
 
 @router.get(
