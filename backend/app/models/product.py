@@ -11,3 +11,4 @@ class Product(Base):
     category = Column(String(100), nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
+    min_stock_level = Column(Integer, nullable=False, default=0)

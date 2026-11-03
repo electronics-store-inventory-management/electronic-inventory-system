@@ -5,11 +5,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 class Settings(BaseSettings):
-    DATABASE_USER: str
-    DATABASE_PASSWORD: str
+    DATABASE_USER: str = ""
+    DATABASE_PASSWORD: str = ""
     DATABASE_HOST: str = "localhost"
     DATABASE_PORT: int = 5432
-    DATABASE_NAME: str
+    DATABASE_NAME: str = "electronics_store_db"
 
     class Config:
         env_file = ".env"
@@ -35,3 +35,12 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
