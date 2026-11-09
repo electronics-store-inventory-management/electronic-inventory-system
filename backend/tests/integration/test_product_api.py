@@ -1,12 +1,13 @@
-from decimal import Decimal
-
-from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
+﻿from decimal import Decimal
+import time
+from tests.auth_helpers import ADMIN_HEADERS, EMPLOYEE_HEADERS
+from tests.test_users import seed_test_users
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database.database import Base
+from app.database.database import Base, get_db as shared_get_db, settings
 from app.main import app
 from app.routers.product import get_db
 
@@ -36,12 +37,17 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
-
+app.dependency_overrides[shared_get_db] = override_get_db
 client = TestClient(app)
 
 
 def setup_database():
     Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        seed_test_users(db)
+    finally:
+        db.close()
 
 
 def teardown_database():
@@ -337,5 +343,155 @@ def test_employee_cannot_manage_products():
             headers=EMPLOYEE_HEADERS,
         )
         assert response.status_code == 403
+    finally:
+        teardown_database()
+def test_product_search_response_within_three_seconds():
+    setup_database()
+    try:
+        # Create a representative set of products.
+        db = TestingSessionLocal()
+        try:
+            from app.models.product import Product
+
+            products = [
+                Product(
+                    name=f"Performance Laptop {i}",
+                    category="Laptops",
+                    price=Decimal("50000.00"),
+                    quantity=10,
+                )
+                for i in range(1000)
+            ]
+            db.add_all(products)
+            db.commit()
+        finally:
+            db.close()
+
+        # Measure the API search response time.
+        start_time = time.perf_counter()
+        response = client.get(
+            "/products/?name=Performance",
+            headers=EMPLOYEE_HEADERS,
+        )
+        elapsed_time = time.perf_counter() - start_time
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1000
+        assert elapsed_time < 3.0, (
+            f"Product search took {elapsed_time:.3f} seconds; "
+            "the requirement is under 3 seconds."
+        )
+    finally:
+        teardown_database()
+
+
+
+def test_register_user_hashes_password_and_login_returns_token():
+    from app.core.password_security import verify_password
+    from app.models.user import User
+
+    setup_database()
+    try:
+        username = "auth_test_employee"
+        password = "SecureTestPassword123!"
+
+        register_response = client.post(
+            "/auth/register",
+            json={"username": username, "password": password},
+        )
+
+        assert register_response.status_code == 201
+        assert register_response.json()["username"] == username
+        assert register_response.json()["role"] == "employee"
+
+        db = TestingSessionLocal()
+        try:
+            user = db.query(User).filter(User.username == username).first()
+            assert user is not None
+            assert user.hashed_password != password
+            assert verify_password(password, user.hashed_password)
+        finally:
+            db.close()
+
+        login_response = client.post(
+            "/auth/login",
+            json={"username": username, "password": password},
+        )
+
+        assert login_response.status_code == 200
+        assert login_response.json()["token_type"] == "bearer"
+        assert login_response.json()["access_token"]
+    finally:
+        teardown_database()
+
+
+def test_register_rejects_duplicate_username():
+    setup_database()
+    try:
+        payload = {
+            "username": "duplicate_test_user",
+            "password": "SecureTestPassword123!",
+        }
+
+        first_response = client.post("/auth/register", json=payload)
+        second_response = client.post("/auth/register", json=payload)
+
+        assert first_response.status_code == 201
+        assert second_response.status_code == 409
+    finally:
+        teardown_database()
+
+
+def test_login_rejects_invalid_credentials():
+    setup_database()
+    try:
+        response = client.post(
+            "/auth/login",
+            json={
+                "username": "nonexistent_test_user",
+                "password": "WrongPassword123!",
+            },
+        )
+
+        assert response.status_code == 401
+    finally:
+        teardown_database()
+
+def test_product_routes_reject_invalid_token():
+    setup_database()
+    try:
+        response = client.get(
+            "/products/",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert response.status_code == 401
+    finally:
+        teardown_database()
+
+
+def test_product_routes_reject_expired_token():
+    from datetime import datetime, timedelta, timezone
+    import jwt
+    from app.database.database import settings
+
+    setup_database()
+    try:
+        now = datetime.now(timezone.utc)
+        expired_token = jwt.encode(
+            {
+                "sub": "2",
+                "username": "employee",
+                "iat": now - timedelta(hours=2),
+                "exp": now - timedelta(hours=1),
+            },
+            settings.JWT_SECRET_KEY,
+            algorithm="HS256",
+        )
+
+        response = client.get(
+            "/products/",
+            headers={"Authorization": f"Bearer {expired_token}"},
+        )
+        assert response.status_code == 401
     finally:
         teardown_database()

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DATABASE_HOST: str = "localhost"
     DATABASE_PORT: int = 5432
     DATABASE_NAME: str = "electronics_store_db"
+    JWT_SECRET_KEY: str = ""
 
     class Config:
         env_file = ".env"
