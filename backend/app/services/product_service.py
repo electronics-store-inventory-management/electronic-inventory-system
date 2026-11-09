@@ -10,6 +10,7 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
         category=product_data.category,
         price=product_data.price,
         quantity=product_data.quantity,
+        min_stock_level=product_data.min_stock_level,
     )
 
     db.add(product)

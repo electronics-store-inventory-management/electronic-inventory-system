@@ -1,11 +1,15 @@
 ﻿from decimal import Decimal
 import time
-from tests.auth_helpers import ADMIN_HEADERS, EMPLOYEE_HEADERS
-from tests.test_users import seed_test_users
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+from tests.auth_helpers import ADMIN_HEADERS, EMPLOYEE_HEADERS
+from tests.test_users import seed_test_users
 
 from app.database.database import Base, get_db as shared_get_db, settings
 from app.main import app
@@ -38,6 +42,7 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[shared_get_db] = override_get_db
+
 client = TestClient(app)
 
 
@@ -64,6 +69,7 @@ def test_add_product():
                 "category": "Laptop",
                 "price": 65000.00,
                 "quantity": 20,
+                "min_stock_level": 5,
             },
             headers=ADMIN_HEADERS,
         )
@@ -74,6 +80,7 @@ def test_add_product():
         assert data["category"] == "Laptop"
         assert Decimal(str(data["price"])) == Decimal("65000.00")
         assert data["quantity"] == 20
+        assert data["min_stock_level"] == 5
         assert "id" in data
     finally:
         teardown_database()
@@ -92,6 +99,7 @@ def test_view_product():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
         product_id = create_response.json()["id"]
 
@@ -122,6 +130,7 @@ def test_search_products_by_name():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
 
         response = client.get(
@@ -150,6 +159,7 @@ def test_search_products_by_category():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
 
         response = client.get(
@@ -178,6 +188,7 @@ def test_search_products_by_id():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
         product_id = create_response.json()["id"]
 
@@ -207,6 +218,7 @@ def test_update_product():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
         product_id = create_response.json()["id"]
 
@@ -241,6 +253,7 @@ def test_delete_product():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
         product_id = create_response.json()["id"]
 
@@ -280,11 +293,9 @@ def test_view_nonexistent_product():
 def test_product_routes_require_authentication():
     setup_database()
     try:
-        # Listing products without authentication must fail.
         response = client.get("/products/")
         assert response.status_code == 401
 
-        # Adding products without authentication must fail.
         response = client.post(
             "/products/",
             json={
@@ -302,7 +313,6 @@ def test_product_routes_require_authentication():
 def test_employee_cannot_manage_products():
     setup_database()
     try:
-        # An admin creates a product for the permission tests.
         create_response = client.post(
             "/products/",
             json={
@@ -313,10 +323,10 @@ def test_employee_cannot_manage_products():
             },
             headers=ADMIN_HEADERS,
         )
+
         assert create_response.status_code == 201
         product_id = create_response.json()["id"]
 
-        # Employees cannot add products.
         response = client.post(
             "/products/",
             json={
@@ -329,7 +339,6 @@ def test_employee_cannot_manage_products():
         )
         assert response.status_code == 403
 
-        # Employees cannot update products.
         response = client.put(
             f"/products/{product_id}",
             json={"quantity": 10},
@@ -337,7 +346,6 @@ def test_employee_cannot_manage_products():
         )
         assert response.status_code == 403
 
-        # Employees cannot delete products.
         response = client.delete(
             f"/products/{product_id}",
             headers=EMPLOYEE_HEADERS,
@@ -345,10 +353,11 @@ def test_employee_cannot_manage_products():
         assert response.status_code == 403
     finally:
         teardown_database()
+
+
 def test_product_search_response_within_three_seconds():
     setup_database()
     try:
-        # Create a representative set of products.
         db = TestingSessionLocal()
         try:
             from app.models.product import Product
@@ -362,17 +371,19 @@ def test_product_search_response_within_three_seconds():
                 )
                 for i in range(1000)
             ]
+
             db.add_all(products)
             db.commit()
         finally:
             db.close()
 
-        # Measure the API search response time.
         start_time = time.perf_counter()
+
         response = client.get(
             "/products/?name=Performance",
             headers=EMPLOYEE_HEADERS,
         )
+
         elapsed_time = time.perf_counter() - start_time
 
         assert response.status_code == 200
@@ -383,7 +394,6 @@ def test_product_search_response_within_three_seconds():
         )
     finally:
         teardown_database()
-
 
 
 def test_register_user_hashes_password_and_login_returns_token():
@@ -457,6 +467,7 @@ def test_login_rejects_invalid_credentials():
     finally:
         teardown_database()
 
+
 def test_product_routes_reject_invalid_token():
     setup_database()
     try:
@@ -464,19 +475,17 @@ def test_product_routes_reject_invalid_token():
             "/products/",
             headers={"Authorization": "Bearer invalid-token"},
         )
+
         assert response.status_code == 401
     finally:
         teardown_database()
 
 
 def test_product_routes_reject_expired_token():
-    from datetime import datetime, timedelta, timezone
-    import jwt
-    from app.database.database import settings
-
     setup_database()
     try:
         now = datetime.now(timezone.utc)
+
         expired_token = jwt.encode(
             {
                 "sub": "2",
@@ -492,6 +501,134 @@ def test_product_routes_reject_expired_token():
             "/products/",
             headers={"Authorization": f"Bearer {expired_token}"},
         )
+
         assert response.status_code == 401
+    finally:
+        teardown_database()
+
+
+def test_low_stock_endpoint_returns_only_below_minimum_products():
+    """Verify filtering uses strict less-than and returns documented fields."""
+    setup_database()
+    try:
+        for name, quantity, minimum in [
+            ("Below", 2, 5),
+            ("Above", 6, 5),
+            ("At minimum", 5, 5),
+        ]:
+            response = client.post(
+                "/products/",
+                json={
+                    "name": name,
+                    "category": "Accessories",
+                    "price": 100.00,
+                    "quantity": quantity,
+                    "min_stock_level": minimum,
+                },
+                headers=ADMIN_HEADERS,
+            )
+            assert response.status_code == 201
+
+        response = client.get(
+            "/products/low-stock",
+            headers=ADMIN_HEADERS,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {"id": 1, "name": "Below", "quantity": 2, "min_stock_level": 5}
+        ]
+    finally:
+        teardown_database()
+
+
+def test_low_stock_endpoint_returns_empty_for_empty_inventory():
+    """An empty database should produce a successful empty low-stock response."""
+    setup_database()
+    try:
+        response = client.get(
+            "/products/low-stock",
+            headers=ADMIN_HEADERS,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == []
+    finally:
+        teardown_database()
+
+
+def test_low_stock_endpoint_requires_admin_access():
+    """Verify that the low-stock endpoint is admin-only."""
+    setup_database()
+    try:
+        assert client.get("/products/low-stock").status_code == 401
+
+        response = client.get(
+            "/products/low-stock",
+            headers=EMPLOYEE_HEADERS,
+        )
+        assert response.status_code == 403
+    finally:
+        teardown_database()
+
+
+def test_product_api_rejects_negative_quantity_and_threshold():
+    """Invalid negative stock values must be rejected by request validation."""
+    setup_database()
+    try:
+        base = {
+            "name": "Invalid Product",
+            "category": "Accessories",
+            "price": 100.00,
+            "quantity": 2,
+            "min_stock_level": 5,
+        }
+
+        for field in ("quantity", "min_stock_level"):
+            response = client.post(
+                "/products/",
+                json={**base, field: -1},
+                headers=ADMIN_HEADERS,
+            )
+            assert response.status_code == 422
+    finally:
+        teardown_database()
+
+
+def test_product_api_updates_minimum_stock_level_and_rejects_negative_value():
+    """Thresholds can be edited independently, while negative edits return 422."""
+    setup_database()
+    try:
+        create_response = client.post(
+            "/products/",
+            json={
+                "name": "Threshold Product",
+                "category": "Accessories",
+                "price": 100.00,
+                "quantity": 8,
+                "min_stock_level": 2,
+            },
+            headers=ADMIN_HEADERS,
+        )
+
+        assert create_response.status_code == 201
+        product_id = create_response.json()["id"]
+
+        update_response = client.put(
+            f"/products/{product_id}",
+            json={"min_stock_level": 5},
+            headers=ADMIN_HEADERS,
+        )
+
+        assert update_response.status_code == 200
+        assert update_response.json()["min_stock_level"] == 5
+
+        invalid_response = client.put(
+            f"/products/{product_id}",
+            json={"min_stock_level": -1},
+            headers=ADMIN_HEADERS,
+        )
+
+        assert invalid_response.status_code == 422
     finally:
         teardown_database()

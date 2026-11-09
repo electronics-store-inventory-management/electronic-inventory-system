@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.core.auth import get_current_user, require_admin
 from sqlalchemy.orm import Session
 
+from app.core.auth import get_current_user, require_admin
 from app.database.database import SessionLocal
+from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from app.services.product_service import (
     create_product,
@@ -21,7 +22,6 @@ router = APIRouter(
 
 def get_db():
     db = SessionLocal()
-
     try:
         yield db
     finally:
@@ -58,6 +58,29 @@ def search_products(
         category=category,
         product_id=product_id,
     )
+
+
+# IMPORTANT: Keep this route BEFORE /{product_id}.
+@router.get("/low-stock")
+def get_low_stock_products(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
+):
+    products = (
+        db.query(Product)
+        .filter(Product.quantity < Product.min_stock_level)
+        .all()
+    )
+
+    return [
+        {
+            "id": product.id,
+            "name": product.name,
+            "quantity": product.quantity,
+            "min_stock_level": product.min_stock_level,
+        }
+        for product in products
+    ]
 
 
 @router.get(
