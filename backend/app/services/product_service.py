@@ -10,7 +10,6 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
         category=product_data.category,
         price=product_data.price,
         quantity=product_data.quantity,
-        # Store the configured reorder threshold along with the product.
         min_stock_level=product_data.min_stock_level,
     )
 

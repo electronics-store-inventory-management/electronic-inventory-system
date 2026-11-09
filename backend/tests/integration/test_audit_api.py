@@ -1,4 +1,4 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -14,7 +14,8 @@ from app.routers.reports import get_db as reports_get_db
 from app.routers.suppliers import get_db as suppliers_get_db
 from app.routers.transactions import get_db as transactions_get_db
 
-from app.core.auth import ADMIN_HEADERS, EMPLOYEE_HEADERS
+from tests.auth_helpers import ADMIN_HEADERS, EMPLOYEE_HEADERS
+from tests.test_users import seed_test_users
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -58,6 +59,11 @@ def _db_setup():
         app.dependency_overrides[_get_db] = override_get_db
 
     Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        seed_test_users(db)
+    finally:
+        db.close()
 
     yield
 
