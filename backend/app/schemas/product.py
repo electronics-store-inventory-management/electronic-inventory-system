@@ -8,6 +8,8 @@ class ProductBase(BaseModel):
     category: str = Field(..., min_length=1, max_length=100)
     price: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2)
     quantity: int = Field(..., ge=0)
+
+    # Zero means no positive reorder threshold.
     min_stock_level: int = Field(default=0, ge=0)
 
     @field_validator("name", "category")

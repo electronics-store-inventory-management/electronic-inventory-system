@@ -1,9 +1,11 @@
+
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.errors import AppError
 from app.database.database import Base, engine
-import app.models  # noqa: F401  registers all models with Base.metadata
+import app.models  # noqa: F401 registers all models with Base.metadata
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
@@ -21,6 +23,14 @@ except Exception:
 app = FastAPI(
     title="Electronics Store Inventory Management System",
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

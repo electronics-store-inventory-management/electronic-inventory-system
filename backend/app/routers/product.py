@@ -5,6 +5,10 @@ from app.core.auth import get_current_user, require_admin
 from app.database.database import SessionLocal
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.report import LowStockProduct
+from app.services.report_service import (
+    get_low_stock_products as get_low_stock_report,
+)
 from app.services.product_service import (
     create_product,
     get_product,
@@ -60,27 +64,16 @@ def search_products(
     )
 
 
-# IMPORTANT: Keep this route BEFORE /{product_id}.
-@router.get("/low-stock")
-def get_low_stock_products(
+@router.get(
+    "/low-stock",
+    response_model=list[LowStockProduct],
+)
+def list_low_stock_products(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_admin),
 ):
-    products = (
-        db.query(Product)
-        .filter(Product.quantity < Product.min_stock_level)
-        .all()
-    )
-
-    return [
-        {
-            "id": product.id,
-            "name": product.name,
-            "quantity": product.quantity,
-            "min_stock_level": product.min_stock_level,
-        }
-        for product in products
-    ]
+    """List products with less stock than their configured minimum level."""
+    return get_low_stock_report(db)
 
 
 @router.get(
