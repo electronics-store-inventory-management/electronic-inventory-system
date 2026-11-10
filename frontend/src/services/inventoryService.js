@@ -1,0 +1,1 @@
+import {apiRequest} from "./api"; export const inventoryService={listProducts:()=>apiRequest("/products/"),lowStock:()=>apiRequest("/products/low-stock")};
