@@ -209,7 +209,6 @@ def test_update_product():
         f"/products/{product_id}",
         json={
             "price": 35000.00,
-            "quantity": 15,
         },
     )
 
@@ -219,7 +218,13 @@ def test_update_product():
 
     assert data["id"] == product_id
     assert Decimal(str(data["price"])) == Decimal("35000.00")
-    assert data["quantity"] == 15
+    assert data["quantity"] == 10
+
+    direct_stock_update = client.put(
+        f"/products/{product_id}",
+        json={"quantity": 15},
+    )
+    assert direct_stock_update.status_code == 400
 
     teardown_database()
 

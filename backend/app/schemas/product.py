@@ -20,6 +20,7 @@ class ProductUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
     category: str | None = Field(None, min_length=1, max_length=100)
     price: Decimal | None = Field(None, gt=0, max_digits=10, decimal_places=2)
+    # Kept for request validation and a clear compatibility error; direct edits are rejected.
     quantity: int | None = Field(None, ge=0)
     # Keep this optional so edits can change the threshold without changing other fields.
     min_stock_level: int | None = Field(None, ge=0)

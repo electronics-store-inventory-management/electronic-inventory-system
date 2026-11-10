@@ -4,19 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.errors import AppError
-from app.database.database import Base, engine
-import app.models  # noqa: F401 registers all models with Base.metadata
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.product import router as product_router
 from app.routers.reports import router as reports_router
 from app.routers.suppliers import router as suppliers_router
 from app.routers.transactions import router as transactions_router
-
-
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception:
-    pass
 
 
 app = FastAPI(

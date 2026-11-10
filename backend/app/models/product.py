@@ -1,10 +1,14 @@
-from sqlalchemy import Column, Integer, String, Numeric
+from sqlalchemy import CheckConstraint, Column, Integer, String, Numeric
 
 from app.database.database import Base
 
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_products_quantity_nonnegative"),
+        CheckConstraint("min_stock_level >= 0", name="ck_products_min_stock_nonnegative"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
