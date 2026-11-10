@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProductBase(BaseModel):
@@ -8,8 +8,17 @@ class ProductBase(BaseModel):
     category: str = Field(..., min_length=1, max_length=100)
     price: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2)
     quantity: int = Field(..., ge=0)
-    # A threshold of zero means the product has no positive reorder threshold.
+
+    # Zero means no positive reorder threshold.
     min_stock_level: int = Field(default=0, ge=0)
+
+    @field_validator("name", "category")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value or any(ord(c) < 32 for c in value):
+            raise ValueError("Invalid text")
+        return value
 
 
 class ProductCreate(ProductBase):
@@ -19,11 +28,27 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
     category: str | None = Field(None, min_length=1, max_length=100)
-    price: Decimal | None = Field(None, gt=0, max_digits=10, decimal_places=2)
-    # Kept for request validation and a clear compatibility error; direct edits are rejected.
+    price: Decimal | None = Field(
+        None, gt=0, max_digits=10, decimal_places=2
+    )
+    # Retain quantity validation for legacy requests; service rejects direct edits.
     quantity: int | None = Field(None, ge=0)
-    # Keep this optional so edits can change the threshold without changing other fields.
     min_stock_level: int | None = Field(None, ge=0)
+
+    @field_validator(
+        "name", "category", "price", "quantity", "min_stock_level"
+    )
+    @classmethod
+    def reject_invalid_updates(cls, value):
+        if value is None:
+            raise ValueError("Field cannot be null")
+
+        if isinstance(value, str):
+            value = value.strip()
+            if not value or any(ord(c) < 32 for c in value):
+                raise ValueError("Invalid text")
+
+        return value
 
 
 class ProductResponse(ProductBase):
