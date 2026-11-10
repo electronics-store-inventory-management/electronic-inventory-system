@@ -166,11 +166,32 @@ select {
   font-weight: 700;
 }
 
-.topbar-label {
-  color: #8792a5;
-  font-size: 10px;
+.topbar-account {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-username {
+  color: #596579;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+}
+
+.logout-button {
+  padding: 8px 11px;
+  border: 1px solid #dfe4ed;
+  border-radius: 8px;
+  color: #465367;
+  background: white;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  border-color: #a9cdbb;
+  color: #236b50;
 }
 
 .page-content {
@@ -211,8 +232,14 @@ select {
     padding: 0 16px;
   }
 
-  .topbar-label {
-    display: none;
+  .topbar-account {
+    gap: 7px;
+  }
+
+  .topbar-username {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .page-content {

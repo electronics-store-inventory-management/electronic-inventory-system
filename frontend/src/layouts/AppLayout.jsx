@@ -1,5 +1,6 @@
 
 import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 import "./AppLayout.css";
 
 const navigation = [
@@ -11,6 +12,8 @@ const navigation = [
 ];
 
 export default function AppLayout() {
+  const { user, logout } = useAuth();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -54,7 +57,10 @@ export default function AppLayout() {
             <span className="breadcrumb-separator"> / </span>
             <span className="breadcrumb-current">Product Management</span>
           </div>
-          <div className="topbar-label">STORE ADMINISTRATION</div>
+          <div className="topbar-account">
+            <span className="topbar-username">{user?.username}</span>
+            <button className="logout-button" type="button" onClick={logout}>Log out</button>
+          </div>
         </header>
 
         <main className="page-content">
