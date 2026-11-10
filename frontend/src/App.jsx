@@ -1,7 +1,8 @@
-
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
 import ProductsPage from "./pages/products/ProductsPage";
+import InventoryPage from "./pages/inventory/InventoryPage";
+import ReportsPage from "./pages/reports/ReportsPage";
 
 function PlaceholderPage({ title }) {
   return (
@@ -20,11 +21,11 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/products" replace />} />
+
         <Route path="products" element={<ProductsPage />} />
-        <Route
-          path="inventory"
-          element={<PlaceholderPage title="Inventory" />}
-        />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+
         <Route
           path="suppliers"
           element={<PlaceholderPage title="Suppliers" />}
@@ -33,10 +34,7 @@ export default function App() {
           path="transactions"
           element={<PlaceholderPage title="Transactions" />}
         />
-        <Route
-          path="reports"
-          element={<PlaceholderPage title="Reports" />}
-        />
+
         <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
     </Routes>
