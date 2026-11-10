@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.errors import BadRequestError
 from app.database.database import Base
 from app.models.audit_log import AuditLog
 from app.models.product import Product
@@ -93,6 +94,27 @@ def test_record_add_and_deduct_transaction(db):
     assert len(audit_rows) == 2
     assert all(row.user_id in (1, 2) for row in audit_rows)
     assert all(row.timestamp is not None for row in audit_rows)
+
+
+# TC-Transaction-01.2
+def test_deduct_more_than_available_stock_is_rejected_without_side_effects(db):
+    product = create_test_product(db, quantity=5)
+
+    with pytest.raises(BadRequestError, match="^Insufficient stock$"):
+        record_transaction(
+            db,
+            InventoryTransactionCreate(
+                product_id=product.id,
+                transaction_type="DEDUCT",
+                quantity=6,
+                user_id=2,
+                reference="SALE-OVERSTOCK",
+            ),
+        )
+
+    assert product.quantity == 5
+    assert db.query(InventoryTransaction).count() == 0
+    assert db.query(AuditLog).count() == 0
 
 
 # TC-Transaction-01.2
