@@ -1,15 +1,23 @@
 from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InventoryTransactionBase(BaseModel):
     product_id: int = Field(..., gt=0)
-    transaction_type: str = Field(..., min_length=1)
+    transaction_type: Literal["ADD", "DEDUCT"]
     quantity: int = Field(..., gt=0)
     user_id: int = Field(..., gt=0)
-    reference: str = Field(..., min_length=1)
+    reference: str = Field(..., min_length=1, max_length=100)
     date: datetime | None = None
+
+    @field_validator("reference")
+    @classmethod
+    def validate_reference(cls, value: str) -> str:
+        value = value.strip()
+        if not value or any(ord(c) < 32 for c in value):
+            raise ValueError("Invalid reference")
+        return value
 
 
 class InventoryTransactionCreate(InventoryTransactionBase):
@@ -19,5 +27,4 @@ class InventoryTransactionCreate(InventoryTransactionBase):
 class InventoryTransactionResponse(InventoryTransactionBase):
     id: int
     date: datetime
-
     model_config = ConfigDict(from_attributes=True)

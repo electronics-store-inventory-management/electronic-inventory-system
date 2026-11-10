@@ -7,6 +7,7 @@ from app.core.errors import AppError
 from app.database.database import Base, engine
 import app.models  # noqa: F401 registers all models with Base.metadata
 from app.routers.audit_logs import router as audit_logs_router
+from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
 from app.routers.reports import router as reports_router
 from app.routers.suppliers import router as suppliers_router
@@ -46,6 +47,7 @@ app.include_router(suppliers_router)
 app.include_router(transactions_router)
 app.include_router(reports_router)
 app.include_router(audit_logs_router)
+app.include_router(auth_router)
 
 
 @app.get("/")

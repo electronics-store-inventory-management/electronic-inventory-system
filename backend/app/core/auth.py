@@ -1,31 +1,61 @@
-from typing import Optional
+﻿from typing import Optional
 
+import jwt
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
-USERS = {
-    "admin": {"id": 1, "username": "admin", "role": "admin"},
-    "employee": {"id": 2, "username": "employee", "role": "employee"},
-}
+from app.database.database import get_db, settings
+from app.models.user import User
 
-ADMIN_HEADERS = {"Authorization": "Bearer admin-token"}
-EMPLOYEE_HEADERS = {"Authorization": "Bearer employee-token"}
-
-TOKEN_TO_USER = {
-    "admin-token": USERS["admin"],
-    "employee-token": USERS["employee"],
-}
+ALGORITHM = "HS256"
 
 
-def get_current_user(authorization: Optional[str] = Header(default=None)):
-    if authorization is None:
+def get_current_user(
+    authorization: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or token not in TOKEN_TO_USER:
+    if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Invalid authentication")
-    return TOKEN_TO_USER[token]
+
+    if not settings.JWT_SECRET_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Authentication is not configured",
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        user_id = int(payload["sub"])
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    if user.role not in {"admin", "employee"}:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+    }
 
 
 def require_admin(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Forbidden: admin required")
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: admin required",
+        )
     return current_user
