@@ -5,11 +5,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class InventoryTransactionBase(BaseModel):
     product_id: int = Field(..., gt=0)
-    transaction_type: Literal["ADD", "DEDUCT"]
-    quantity: int = Field(..., gt=0)
+    transaction_type: Literal["ADD", "DEDUCT", "SET"]
+    quantity: int = Field(..., ge=0)
     user_id: int = Field(..., gt=0)
     reference: str = Field(..., min_length=1, max_length=100)
     date: datetime | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, value: int, info):
+        transaction_type = info.data.get("transaction_type")
+        if transaction_type == "SET":
+            return value
+        if value <= 0:
+            raise ValueError("Quantity must be greater than zero")
+        return value
 
     @field_validator("reference")
     @classmethod

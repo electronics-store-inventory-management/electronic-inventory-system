@@ -1,6 +1,6 @@
 
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 import "./AppLayout.css";
 
 const navigation = [
@@ -13,15 +13,9 @@ const navigation = [
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const visibleNavigation = navigation.filter(
     (item) => !item.adminOnly || user?.role === "admin",
   );
-
-  function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
-  }
 
   return (
     <div className="app-shell">
@@ -66,12 +60,13 @@ export default function AppLayout() {
             <span className="breadcrumb-separator"> / </span>
             <span className="breadcrumb-current">Product Management</span>
           </div>
-          <div className="topbar-label">
-            {user?.username} · {user?.role}
+          <div className="topbar-account">
+            <span className="topbar-username">{user?.username}</span>
+            <span className="topbar-role">{user?.role}</span>
             <button
               className="logout-button"
               type="button"
-              onClick={handleLogout}
+              onClick={logout}
             >
               Sign out
             </button>

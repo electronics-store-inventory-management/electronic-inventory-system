@@ -31,6 +31,7 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = Field(
         None, gt=0, max_digits=10, decimal_places=2
     )
+    # Retain quantity validation for legacy requests; service rejects direct edits.
     quantity: int | None = Field(None, ge=0)
     min_stock_level: int | None = Field(None, ge=0)
 

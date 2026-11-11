@@ -119,6 +119,9 @@ def test_restock_shows_up_in_transactions():
     assert data[0]["quantity"] == 20
     assert data[0]["user_id"] == 1
     assert data[0]["reference"] == "RESTOCK-001"
+    assert client.get(
+        f"/products/{product_id}", headers=ADMIN_HEADERS
+    ).json()["quantity"] == 120
 
 
 # TC-Transaction-01.2
@@ -142,12 +145,68 @@ def test_sale_creates_deduct_row():
     data = response.json()
     assert data["transaction_type"] == "DEDUCT"
     assert data["quantity"] == 4
-    product_response = client.get(
-        f"/products/{product_id}",
-        headers=ADMIN_HEADERS,
+    assert data["user_id"] == 2
+    assert client.get(
+        f"/products/{product_id}", headers=ADMIN_HEADERS
+    ).json()["quantity"] == 96
+
+
+def test_authenticated_user_overrides_body_user_id():
+    product_id = create_product_db(quantity=20)
+    response = client.post(
+        "/transactions/",
+        json={
+            "product_id": product_id,
+            "transaction_type": "DEDUCT",
+            "quantity": 1,
+            "user_id": 999,
+            "reference": "SALE-AUTHOR",
+        },
+        headers=EMPLOYEE_HEADERS,
     )
-    assert product_response.status_code == 200
-    assert product_response.json()["quantity"] == 96
+    assert response.status_code == 201
+    assert response.json()["user_id"] == 2
+
+
+def test_set_transaction_can_zero_stock_and_is_idempotent():
+    product_id = create_product_db(quantity=20)
+    payload = {
+        "product_id": product_id,
+        "transaction_type": "SET",
+        "quantity": 0,
+        "user_id": 999,
+        "reference": "STOCKTAKE-1",
+    }
+    headers = {**ADMIN_HEADERS, "Idempotency-Key": "stocktake-1"}
+    first = client.post("/transactions/", json=payload, headers=headers)
+    replay = client.post("/transactions/", json=payload, headers=headers)
+    assert first.status_code == replay.status_code == 201
+    assert replay.json()["id"] == first.json()["id"]
+    assert first.json()["quantity"] == 0
+    assert first.json()["user_id"] == 1
+    assert client.get(
+        f"/products/{product_id}", headers=ADMIN_HEADERS
+    ).json()["quantity"] == 0
+    assert len(client.get("/transactions/", headers=ADMIN_HEADERS).json()) == 1
+
+
+def test_employee_cannot_set_stock():
+    product_id = create_product_db(quantity=5)
+    response = client.post(
+        "/transactions/",
+        json={
+            "product_id": product_id,
+            "transaction_type": "SET",
+            "quantity": 0,
+            "user_id": 2,
+            "reference": "STOCKTAKE",
+        },
+        headers=EMPLOYEE_HEADERS,
+    )
+    assert response.status_code == 403
+    assert client.get(
+        f"/products/{product_id}", headers=ADMIN_HEADERS
+    ).json()["quantity"] == 5
 
 
 # TC-Transaction-01.3

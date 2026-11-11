@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect as sqlalchemy_inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -196,3 +196,134 @@ def test_rollback_removes_transaction_and_audit_row(db):
 
     assert db.query(InventoryTransaction).filter(InventoryTransaction.id == tx.id).first() is not None
     assert db.query(AuditLog).count() == 1
+
+
+def test_set_transaction_supports_zero_and_records_audit(db):
+    product = create_test_product(db, quantity=17)
+    tx = record_transaction(
+        db,
+        InventoryTransactionCreate(
+            product_id=product.id,
+            transaction_type="SET",
+            quantity=0,
+            user_id=999,
+            reference="COUNT-CORRECTION",
+        ),
+        authenticated_user_id=2,
+    )
+    db.refresh(product)
+    audit = db.query(AuditLog).one()
+    assert product.quantity == 0
+    assert tx.transaction_type == "SET"
+    assert tx.quantity == 0
+    assert tx.user_id == audit.user_id == 2
+    assert audit.action == "inventory_set"
+
+
+def test_idempotency_replay_does_not_apply_stock_twice(db):
+    product = create_test_product(db, quantity=10)
+    request = InventoryTransactionCreate(
+        product_id=product.id,
+        transaction_type="ADD",
+        quantity=5,
+        user_id=1,
+        reference="RESTOCK-ONCE",
+    )
+    first = record_transaction(db, request, authenticated_user_id=1, idempotency_key="request-1")
+    second = record_transaction(db, request, authenticated_user_id=1, idempotency_key="request-1")
+    db.refresh(product)
+    assert second.id == first.id
+    assert product.quantity == 15
+    assert db.query(InventoryTransaction).count() == 1
+    assert db.query(AuditLog).count() == 1
+
+
+def test_identical_operations_without_idempotency_key_are_both_recorded(db):
+    product = create_test_product(db, quantity=8)
+    request = InventoryTransactionCreate(
+        product_id=product.id,
+        transaction_type="DEDUCT",
+        quantity=3,
+        user_id=2,
+        reference="SALE-LEGACY-1",
+    )
+    first = record_transaction(db, request, authenticated_user_id=2)
+    second = record_transaction(db, request, authenticated_user_id=2)
+    db.refresh(product)
+    assert second.id != first.id
+    assert product.quantity == 2
+    assert db.query(InventoryTransaction).count() == 2
+
+
+def test_transaction_update_does_not_expire_unrelated_session_objects(db):
+    changed = create_test_product(db, name="Changed", quantity=10)
+    unrelated = create_test_product(db, name="Unrelated", quantity=21)
+    assert not sqlalchemy_inspect(unrelated).expired
+
+    record_transaction(
+        db,
+        InventoryTransactionCreate(
+            product_id=changed.id,
+            transaction_type="ADD",
+            quantity=4,
+            user_id=1,
+            reference="ADD-SESSION-TEST",
+        ),
+    )
+
+    assert changed.quantity == 14
+    assert unrelated.quantity == 21
+    assert not sqlalchemy_inspect(unrelated).expired
+
+
+def test_idempotency_key_cannot_be_reused_for_different_request(db):
+    product = create_test_product(db)
+    record_transaction(
+        db,
+        InventoryTransactionCreate(
+            product_id=product.id,
+            transaction_type="ADD",
+            quantity=5,
+            user_id=1,
+            reference="FIRST",
+        ),
+        idempotency_key="request-1",
+    )
+    with pytest.raises(Exception, match="different transaction"):
+        record_transaction(
+            db,
+            InventoryTransactionCreate(
+                product_id=product.id,
+                transaction_type="ADD",
+                quantity=6,
+                user_id=1,
+                reference="SECOND",
+            ),
+            idempotency_key="request-1",
+        )
+
+
+def test_transaction_rolls_back_stock_when_audit_fails(db, monkeypatch):
+    from app.services import transaction_service
+
+    product = create_test_product(db, quantity=10)
+
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(transaction_service, "log_audit", fail_audit)
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        record_transaction(
+            db,
+            InventoryTransactionCreate(
+                product_id=product.id,
+                transaction_type="ADD",
+                quantity=5,
+                user_id=1,
+                reference="ROLLBACK",
+            ),
+        )
+    db.refresh(product)
+    assert product.quantity == 10
+    assert db.query(InventoryTransaction).count() == 0
+    assert db.query(AuditLog).count() == 0

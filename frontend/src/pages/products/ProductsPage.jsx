@@ -1,12 +1,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { productService } from "../../services/productService";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import "./ProductsPage.css";
 
 const EMPTY_PRODUCT = { name: "", category: "", price: "", quantity: "0" };
 
-function validateProduct(product) {
+function validateProduct(product, { includeQuantity = true } = {}) {
   const errors = {};
   const name = product.name.trim();
   const category = product.category.trim();
@@ -29,9 +29,11 @@ function validateProduct(product) {
     errors.price = "Price must be greater than 0.";
   }
 
-  const quantity = product.quantity.trim();
-  if (!/^\d+$/.test(quantity) || !Number.isSafeInteger(Number(quantity))) {
-    errors.quantity = "Enter a whole number quantity of 0 or more.";
+  if (includeQuantity) {
+    const quantity = product.quantity.trim();
+    if (!/^\d+$/.test(quantity) || !Number.isSafeInteger(Number(quantity))) {
+      errors.quantity = "Enter a whole number quantity of 0 or more.";
+    }
   }
 
   return errors;
@@ -278,7 +280,6 @@ export default function ProductsPage() {
       name: product.name,
       category: product.category,
       price: String(product.price),
-      quantity: String(product.quantity),
     });
     setEditErrors({});
     setEditError("");
@@ -287,7 +288,7 @@ export default function ProductsPage() {
 
   async function handleUpdateProduct(event) {
     event.preventDefault();
-    const errors = validateProduct(editProduct);
+    const errors = validateProduct(editProduct, { includeQuantity: false });
     setEditErrors(errors);
     setEditError("");
     if (Object.keys(errors).length > 0) return;
@@ -298,7 +299,6 @@ export default function ProductsPage() {
         name: editProduct.name.trim(),
         category: editProduct.category.trim(),
         price: editProduct.price.trim(),
-        quantity: Number(editProduct.quantity),
       });
 
       setIsEditOpen(false);
@@ -864,24 +864,10 @@ export default function ProductsPage() {
                   {editErrors.price && <small id="edit-product-price-error">{editErrors.price}</small>}
                 </label>
 
-                <label className="product-form-field" htmlFor="edit-product-quantity">
-                  <span>Quantity <span aria-hidden="true">*</span></span>
-                  <input
-                    id="edit-product-quantity"
-                    name="quantity"
-                    type="text"
-                    inputMode="numeric"
-                    value={editProduct.quantity}
-                    required
-                    aria-invalid={Boolean(editErrors.quantity)}
-                    aria-describedby={editErrors.quantity ? "edit-product-quantity-error" : undefined}
-                    onChange={(event) =>
-                      setEditProduct({ ...editProduct, quantity: event.target.value })
-                    }
-                  />
-                  {editErrors.quantity && <small id="edit-product-quantity-error">{editErrors.quantity}</small>}
-                </label>
               </div>
+              <p className="form-help">
+                Current stock: {products.find((product) => product.id === editingProductId)?.quantity ?? "—"}. Use an inventory transaction to change stock so the adjustment is recorded.
+              </p>
 
               <footer className="product-form-actions">
                 <button
