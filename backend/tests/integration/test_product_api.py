@@ -431,6 +431,7 @@ def test_register_user_hashes_password_and_login_returns_token():
         assert login_response.status_code == 200
         assert login_response.json()["token_type"] == "bearer"
         assert login_response.json()["access_token"]
+        assert login_response.json()["user"]["role"] == "employee"
     finally:
         teardown_database()
 
@@ -448,6 +449,52 @@ def test_register_rejects_duplicate_username():
 
         assert first_response.status_code == 201
         assert second_response.status_code == 409
+    finally:
+        teardown_database()
+
+
+def test_public_registration_cannot_assign_admin_role():
+    setup_database()
+    try:
+        response = client.post(
+            "/auth/register",
+            json={
+                "username": "cannot_be_admin",
+                "password": "SecureTestPassword123!",
+                "role": "admin",
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["role"] == "employee"
+    finally:
+        teardown_database()
+
+
+def test_employee_is_denied_admin_apis_even_with_admin_role_claim():
+    from tests.auth_helpers import make_test_headers
+
+    setup_database()
+    try:
+        # The test token claims admin, but user 2 is an employee in the database.
+        forged_claim_headers = make_test_headers(2, "employee", "admin")
+        responses = [
+            client.get("/products/low-stock", headers=EMPLOYEE_HEADERS),
+            client.get("/reports/", headers=EMPLOYEE_HEADERS),
+            client.get("/audit-logs/", headers=EMPLOYEE_HEADERS),
+            client.post(
+                "/products/",
+                json={"name": "Denied", "category": "Test", "price": 1, "quantity": 1},
+                headers=EMPLOYEE_HEADERS,
+            ),
+            client.post(
+                "/products/",
+                json={"name": "Forged", "category": "Test", "price": 1, "quantity": 1},
+                headers=forged_claim_headers,
+            ),
+        ]
+
+        assert [response.status_code for response in responses] == [403] * len(responses)
     finally:
         teardown_database()
 

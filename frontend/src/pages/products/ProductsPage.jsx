@@ -1,6 +1,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { productService } from "../../services/productService";
+import { useAuth } from "../../auth/AuthContext";
 import "./ProductsPage.css";
 
 const EMPTY_PRODUCT = { name: "", category: "", price: "", quantity: "0" };
@@ -48,6 +49,8 @@ async function fetchProducts(filters = {}) {
 }
 
 export default function ProductsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -399,15 +402,17 @@ export default function ProductsPage() {
             Manage your electronic products and keep your catalogue up to date.
           </p>
         </div>
-        <button
-          ref={addButtonRef}
-          className="primary-button"
-          onClick={openAddForm}
-          type="button"
-        >
-          <span className="button-plus">+</span>
-          Add product
-        </button>
+        {isAdmin && (
+          <button
+            ref={addButtonRef}
+            className="primary-button"
+            onClick={openAddForm}
+            type="button"
+          >
+            <span className="button-plus">+</span>
+            Add product
+          </button>
+        )}
       </section>
 
       {successMessage && (
@@ -590,26 +595,30 @@ export default function ProductsPage() {
                         >
                           View details
                         </button>
-                        <button
-                          className="edit-product-button"
-                          type="button"
-                          aria-label={`Edit ${product.name}`}
-                          onClick={(event) =>
-                            openEditForm(product, event.currentTarget)
-                          }
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="delete-product-button"
-                          type="button"
-                          aria-label={`Delete ${product.name}`}
-                          onClick={(event) =>
-                            openDeleteDialog(product, event.currentTarget)
-                          }
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button
+                            className="edit-product-button"
+                            type="button"
+                            aria-label={`Edit ${product.name}`}
+                            onClick={(event) =>
+                              openEditForm(product, event.currentTarget)
+                            }
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            className="delete-product-button"
+                            type="button"
+                            aria-label={`Delete ${product.name}`}
+                            onClick={(event) =>
+                              openDeleteDialog(product, event.currentTarget)
+                            }
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

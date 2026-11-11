@@ -1,5 +1,6 @@
 
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import "./AppLayout.css";
 
 const navigation = [
@@ -7,10 +8,21 @@ const navigation = [
   { label: "Inventory", path: "/inventory" },
   { label: "Suppliers", path: "/suppliers" },
   { label: "Transactions", path: "/transactions" },
-  { label: "Reports", path: "/reports" },
+  { label: "Reports", path: "/reports", adminOnly: true },
 ];
 
 export default function AppLayout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const visibleNavigation = navigation.filter(
+    (item) => !item.adminOnly || user?.role === "admin",
+  );
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -25,7 +37,7 @@ export default function AppLayout() {
         <p className="nav-heading">WORKSPACE</p>
 
         <nav className="navigation">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -54,7 +66,16 @@ export default function AppLayout() {
             <span className="breadcrumb-separator"> / </span>
             <span className="breadcrumb-current">Product Management</span>
           </div>
-          <div className="topbar-label">STORE ADMINISTRATION</div>
+          <div className="topbar-label">
+            {user?.username} · {user?.role}
+            <button
+              className="logout-button"
+              type="button"
+              onClick={handleLogout}
+            >
+              Sign out
+            </button>
+          </div>
         </header>
 
         <main className="page-content">
