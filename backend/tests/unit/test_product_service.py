@@ -2,11 +2,13 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database.database import Base
 from app.models.product import Product
+from app.models.transaction import InventoryTransaction
 from app.schemas.product import ProductCreate, ProductUpdate
 from app.services.product_service import (
     create_product,
@@ -119,6 +121,21 @@ def test_product_schema_rejects_negative_stock_values(field):
         ProductUpdate(**{field: -1})
 
 
+def test_database_rejects_negative_product_quantity(db):
+    db.add(
+        Product(
+            name="Invalid Stock",
+            category="Laptop",
+            price=Decimal("100.00"),
+            quantity=-1,
+            min_stock_level=0,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+
+
 def test_get_product(db):
     product = create_test_product(db)
 
@@ -196,7 +213,6 @@ def test_update_product(db):
 
     update_data = ProductUpdate(
         price=Decimal("45000.00"),
-        quantity=15,
     )
 
     updated_product = update_product(
@@ -207,7 +223,10 @@ def test_update_product(db):
 
     assert updated_product is not None
     assert updated_product.price == Decimal("45000.00")
-    assert updated_product.quantity == 15
+    assert updated_product.quantity == 10
+
+    with pytest.raises(Exception, match="transactions/ as SET"):
+        update_product(db, product.id, ProductUpdate(quantity=15))
 
 
 def test_update_product_not_found(db):
@@ -250,3 +269,19 @@ def test_delete_product_not_found(db):
     )
 
     assert result is None
+
+
+def test_product_with_transaction_history_cannot_be_deleted(db):
+    product = create_test_product(db)
+    db.add(
+        InventoryTransaction(
+            product_id=product.id,
+            transaction_type="ADD",
+            quantity=1,
+            user_id=1,
+            reference="RESTOCK",
+        )
+    )
+    db.commit()
+    with pytest.raises(Exception, match="transactions exist"):
+        delete_product(db, product.id)

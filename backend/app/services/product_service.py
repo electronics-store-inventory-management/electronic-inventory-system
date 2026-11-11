@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 
+from app.core.errors import BadRequestError, ConflictError
 from app.models.product import Product
+from app.models.transaction import InventoryTransaction
 from app.schemas.product import ProductCreate, ProductUpdate
 
 
@@ -58,6 +60,9 @@ def update_product(
 
     update_data = product_data.model_dump(exclude_unset=True)
 
+    if "quantity" in update_data:
+        raise BadRequestError("Stock changes must be recorded through /transactions/ as SET")
+
     for field, value in update_data.items():
         setattr(product, field, value)
 
@@ -72,6 +77,15 @@ def delete_product(db: Session, product_id: int) -> Product | None:
 
     if product is None:
         return None
+
+    has_transactions = (
+        db.query(InventoryTransaction.id)
+        .filter(InventoryTransaction.product_id == product_id)
+        .first()
+        is not None
+    )
+    if has_transactions:
+        raise ConflictError("Product cannot be deleted while inventory transactions exist")
 
     db.delete(product)
     db.commit()

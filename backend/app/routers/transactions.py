@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user, require_admin
 from app.database.database import SessionLocal
-from app.models.product import Product
-from app.models.transaction import InventoryTransaction
 from app.schemas.transaction import InventoryTransactionCreate, InventoryTransactionResponse
 from app.services.transaction_service import get_transactions, record_transaction
 
@@ -32,17 +30,23 @@ def add_transaction(
     transaction_data: InventoryTransactionCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     if (
-        transaction_data.transaction_type == "ADD"
+        transaction_data.transaction_type in {"ADD", "SET"}
         and current_user.get("role") != "admin"
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: only administrators can restock",
+            detail="Forbidden: only administrators can change stock levels",
         )
 
-    return record_transaction(db, transaction_data)
+    return record_transaction(
+        db,
+        transaction_data,
+        authenticated_user_id=current_user["id"],
+        idempotency_key=idempotency_key,
+    )
 
 
 @router.get(
