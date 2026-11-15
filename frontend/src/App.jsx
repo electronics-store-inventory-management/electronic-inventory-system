@@ -13,11 +13,16 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/products" replace />} />
-
         <Route path="products" element={<ProductsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
-        <Route path="reports" element={<ReportsPage />} />
-
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute role="admin">
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="suppliers"
           element={<PlaceholderPage title="Suppliers" />}
@@ -26,7 +31,6 @@ export default function App() {
           path="transactions"
           element={<PlaceholderPage title="Transactions" />}
         />
-
         <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
     </Routes>

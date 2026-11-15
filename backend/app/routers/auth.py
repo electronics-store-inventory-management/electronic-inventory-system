@@ -94,4 +94,9 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer",
         "expires_in": ACCESS_TOKEN_MINUTES * 60,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+        },
     }

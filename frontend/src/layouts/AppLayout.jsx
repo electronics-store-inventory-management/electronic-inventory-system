@@ -1,4 +1,3 @@
-
 import { matchPath, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import Icon from "../components/Icon";
@@ -16,7 +15,9 @@ export default function AppLayout() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const currentPage = navigation.find(({ path }) => matchPath(path, pathname));
-  const visibleNavigation = navigation.filter(({ adminOnly }) => !adminOnly || user?.role === "admin");
+  const visibleNavigation = navigation.filter(
+    ({ adminOnly }) => !adminOnly || user?.role === "admin",
+  );
   const username = user?.username;
   const initial = username?.slice(0, 1).toUpperCase();
 
@@ -70,7 +71,12 @@ export default function AppLayout() {
                 <span className="topbar-username" title={username}>{username}</span>
               </div>
             )}
-            <button className="ui-button ui-button--secondary logout-button" type="button" onClick={logout}>
+            {user?.role && <span className="topbar-role">{user.role}</span>}
+            <button
+              className="ui-button ui-button--secondary logout-button"
+              type="button"
+              onClick={logout}
+            >
               <Icon name="logout" />
               Log out
             </button>

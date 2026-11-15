@@ -15,9 +15,10 @@ export default function LoginPage() {
 
   if (isAuthenticated) {
     const from = location.state?.from;
-    const destination = typeof from === "string" && /^\/(?![/\\])/.test(from)
-      ? from
-      : "/products";
+    const destination =
+      typeof from === "string" && /^\/(?![/\\])/.test(from)
+        ? from
+        : "/products";
     return <Navigate to={destination} replace />;
   }
 
@@ -56,6 +57,7 @@ export default function LoginPage() {
             <div className="login-art-status"><Icon name="check" /></div>
           </div>
         </div>
+
         <section className="login-content" aria-labelledby="login-title">
           <div className="login-heading">
             <h1 id="login-title">Welcome back</h1>
