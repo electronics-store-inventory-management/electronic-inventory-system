@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { login as requestLogin } from "../services/authService";
-import { AUTH_SESSION_KEY, getSessionRole } from "./session";
+import { AUTH_SESSION_KEY } from "./session";
 import { AuthContext } from "./AuthContextValue";
+
+const VALID_ROLES = new Set(["admin", "employee"]);
 
 function readSession() {
   try {
@@ -9,6 +11,7 @@ function readSession() {
     if (
       !session?.accessToken ||
       !session.username ||
+      !VALID_ROLES.has(session.role) ||
       !Number.isFinite(session.expiresAt) ||
       session.expiresAt <= Date.now()
     ) {
@@ -65,6 +68,7 @@ export function AuthProvider({ children }) {
       sessionId: crypto.randomUUID(),
       tokenType: result.tokenType,
       username,
+      role: result.role,
       expiresAt: Date.now() + result.expiresIn * 1000,
     };
     sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession));
@@ -114,7 +118,7 @@ export function AuthProvider({ children }) {
     () => ({
       session,
       user: session
-        ? { username: session.username, role: getSessionRole(session.accessToken) }
+        ? { username: session.username, role: session.role }
         : null,
       isAuthenticated: Boolean(session),
       signIn,

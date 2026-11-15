@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 
-export default function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+export default function ProtectedRoute({ children, role }) {
+  const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
@@ -13,6 +13,10 @@ export default function ProtectedRoute({ children }) {
         state={{ from: `${location.pathname}${location.search}${location.hash}` }}
       />
     );
+  }
+
+  if (role && user?.role !== role) {
+    return <Navigate to="/products" replace />;
   }
 
   return children;

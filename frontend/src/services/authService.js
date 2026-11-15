@@ -11,7 +11,8 @@ export async function login(username, password) {
       !result?.access_token ||
       result.token_type?.toLowerCase() !== "bearer" ||
       !Number.isFinite(result.expires_in) ||
-      result.expires_in <= 0
+      result.expires_in <= 0 ||
+      !["admin", "employee"].includes(result.user?.role)
     ) {
       throw new Error("The sign-in response was not valid.");
     }
@@ -20,6 +21,7 @@ export async function login(username, password) {
       accessToken: result.access_token,
       tokenType: result.token_type,
       expiresIn: result.expires_in,
+      role: result.user.role,
     };
   } catch (error) {
     if (error.status === 401) {
