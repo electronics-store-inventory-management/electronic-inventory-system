@@ -4,6 +4,8 @@ import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/auth/LoginPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
+import SuppliersPage from "./pages/suppliers/SuppliersPage";
+import TransactionsPage from "./pages/transactions/TransactionsPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import PlaceholderPage from "./pages/shared/PlaceholderPage";
 
@@ -15,22 +17,16 @@ export default function App() {
         <Route index element={<Navigate to="/products" replace />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
-        <Route
-          path="reports"
-          element={
-            <ProtectedRoute role="admin">
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="suppliers"
-          element={<PlaceholderPage title="Suppliers" />}
-        />
-        <Route
-          path="transactions"
-          element={<PlaceholderPage title="Transactions" />}
-        />
+<Route path="suppliers" element={<SuppliersPage />} />
+<Route path="transactions" element={<TransactionsPage />} />
+<Route
+  path="reports"
+  element={
+    <ProtectedRoute role="admin">
+      <ReportsPage />
+    </ProtectedRoute>
+  }
+/>
         <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
     </Routes>

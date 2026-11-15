@@ -143,3 +143,16 @@ def get_product_suppliers(db: Session, product_id: int) -> list[ProductSupplier]
         .filter(ProductSupplier.product_id == product_id)
         .all()
     )
+
+
+def get_supplier_products(db: Session, supplier_id: int) -> list[ProductSupplier]:
+    supplier = get_supplier(db, supplier_id)
+
+    if supplier is None:
+        raise NotFoundError("Supplier not found")
+
+    return (
+        db.query(ProductSupplier)
+        .filter(ProductSupplier.supplier_id == supplier_id)
+        .all()
+    )
