@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../auth/useAuth";
 import { productService } from "../../services/productService";
-import { getSessionUser } from "../../services/sessionUser";
 import { transactionService } from "../../services/transactionService";
 import { sampleProducts } from "../../services/sampleData";
 import { Alert, LoadingOrError, PageHeading } from "../shared/WorkspaceTools";
@@ -78,7 +78,7 @@ function newIdempotencyKey() {
 }
 
 export default function TransactionsPage() {
-  const currentUser = getSessionUser();
+  const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === "admin";
 
   const [transactions, setTransactions] = useState([]);
@@ -230,7 +230,7 @@ export default function TransactionsPage() {
         product_id: Number(formValues.product_id),
         transaction_type: formValues.transaction_type,
         quantity: Number(formValues.quantity),
-        user_id: currentUser?.id || 1,
+        user_id: currentUser.id,
         reference: formValues.reference.trim(),
       };
 

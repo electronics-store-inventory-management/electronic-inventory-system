@@ -1,6 +1,4 @@
 import { apiRequest } from "./api";
-import { apiRequest } from "./api";
-import { isOfflineError } from "./sessionUser";
 import { sampleTransactions } from "./sampleData";
 
 export const transactionService = {
@@ -12,7 +10,7 @@ export const transactionService = {
     try {
       return await apiRequest(`/transactions/${query ? `?${query}` : ""}`);
     } catch (error) {
-      if (isOfflineError(error)) {
+      if (!error?.status) {
         return filters.product_id
           ? sampleTransactions.filter(
               (transaction) =>

@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children, role, adminOnly = false }) {
     );
   }
 
-<  if ((adminOnly || role === "admin") && user?.role !== "admin") {
+  if ((adminOnly || role === "admin") && user?.role !== "admin") {
     return (
       <div className="workspace-page">
         <PageHeading title="Reports" />
@@ -34,7 +34,6 @@ export default function ProtectedRoute({ children, role, adminOnly = false }) {
 
   if (role && user?.role !== role) {
     return <Navigate to="/products" replace />;
-  }
   }
 
   return children;

@@ -417,13 +417,15 @@ def test_register_user_hashes_password_and_login_returns_token():
         )
 
         assert register_response.status_code == 201
-        assert register_response.json()["username"] == username
-        assert register_response.json()["role"] == "employee"
+        account = register_response.json()
+        assert account["username"] == username
+        assert account["role"] == "employee"
 
         db = TestingSessionLocal()
         try:
             user = db.query(User).filter(User.username == username).first()
             assert user is not None
+            assert (user.id, user.role) == (account["id"], "employee")
             assert user.hashed_password != password
             assert verify_password(password, user.hashed_password)
         finally:
@@ -435,17 +437,24 @@ def test_register_user_hashes_password_and_login_returns_token():
         )
 
         assert login_response.status_code == 200
-        assert login_response.json()["token_type"] == "bearer"
-        assert login_response.json()["access_token"]
-        assert login_response.json()["user"]["role"] == "employee"
+        login_data = login_response.json()
+        assert set(login_data) == {"access_token", "token_type", "expires_in"}
+        assert login_data["token_type"] == "bearer"
+        assert login_data["expires_in"] > 0
+        token = login_data["access_token"]
         token_payload = jwt.decode(
-            login_response.json()["access_token"],
+            token,
             settings.JWT_SECRET_KEY,
             algorithms=["HS256"],
         )
         assert set(token_payload) == {"sub", "iat", "exp"}
+        assert token_payload["sub"] == str(account["id"])
         assert username not in str(token_payload)
         assert "employee" not in token_payload.values()
+
+        me_response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me_response.status_code == 200
+        assert me_response.json() == account
         assert password not in register_response.text
         assert password not in login_response.text
         assert "hashed_password" not in register_response.text
@@ -516,8 +525,13 @@ def test_register_rejects_duplicate_username():
 
 
 def test_public_registration_cannot_assign_admin_role():
+    from app.models.user import User
+
     setup_database()
     try:
+        with TestingSessionLocal() as db:
+            original_accounts = db.query(User.username, User.role).order_by(User.id).all()
+
         response = client.post(
             "/auth/register",
             json={
@@ -527,8 +541,10 @@ def test_public_registration_cannot_assign_admin_role():
             },
         )
 
-        assert response.status_code == 201
-        assert response.json()["role"] == "employee"
+        assert response.status_code == 422
+        assert any(error["type"] == "extra_forbidden" for error in response.json()["detail"])
+        with TestingSessionLocal() as db:
+            assert db.query(User.username, User.role).order_by(User.id).all() == original_accounts
     finally:
         teardown_database()
 

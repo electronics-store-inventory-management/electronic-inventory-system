@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { AUTH_SESSION_KEY, clearAuthSession, readStoredSession } from "../src/auth/session.js";
 import { apiRequest } from "../src/services/api.js";
+import { getAccount, login } from "../src/services/authService.js";
 
 function fakeWindow(t, storedSession) {
   const storage = new Map([[AUTH_SESSION_KEY, JSON.stringify(storedSession)]]);
@@ -61,4 +62,23 @@ test("an old hydration request returning 401 cannot clear a newer sign-in with t
   clearAuthSession(setSession, previous.accessToken, previous.sessionId);
   assert.deepEqual(readStoredSession(), next);
   assert.equal(memory, next);
+});
+
+test("sign-in reads the role from the authenticated account endpoint", async (t) => {
+  const account = { id: 1, username: "fixture_admin", role: "admin" };
+  const fetch = t.mock.method(globalThis, "fetch", (url, options) => {
+    const path = new URL(url, "https://fixture.example").pathname;
+    if (path === "/auth/login") {
+      assert.equal(options.method, "POST");
+      return Response.json({ access_token: "fixture-token", token_type: "bearer", expires_in: 1800 });
+    }
+    assert.equal(path, "/auth/me");
+    assert.equal(options.headers.get("Authorization"), "Bearer fixture-token");
+    return Response.json(account);
+  });
+
+  const token = await login(account.username, "fixture-password");
+  assert.deepEqual(token, { accessToken: "fixture-token", tokenType: "bearer", expiresIn: 1800 });
+  assert.deepEqual(await getAccount({ accessToken: token.accessToken }), account);
+  assert.equal(fetch.mock.callCount(), 2);
 });

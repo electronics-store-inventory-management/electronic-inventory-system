@@ -86,9 +86,6 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-            </button>
-          </div>
-        </div>
         {error && (
           <p className="ui-feedback ui-tone-error login-error" role="alert">
             <Icon name="warning" />{error}
