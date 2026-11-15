@@ -12,8 +12,8 @@ from app.schemas.supplier import (
 )
 from app.services.supplier_service import (
     create_supplier,
-    get_product_suppliers,
     get_supplier,
+    get_supplier_products,
     get_suppliers,
     link_product_supplier,
     update_supplier,
@@ -148,7 +148,7 @@ def list_supplier_products(
             detail="Supplier not found",
         )
 
-    links = get_product_suppliers(db, product_id=supplier_id)
+    links = get_supplier_products(db, supplier_id)
 
     return [
         {

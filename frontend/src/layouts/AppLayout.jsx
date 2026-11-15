@@ -1,5 +1,5 @@
 
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import "./AppLayout.css";
 
@@ -13,6 +13,10 @@ const navigation = [
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const currentSection =
+    navigation.find((item) => location.pathname.startsWith(item.path)) ||
+    navigation[0];
 
   return (
     <div className="app-shell">
@@ -55,7 +59,7 @@ export default function AppLayout() {
           <div>
             <span className="breadcrumb">Workspace</span>
             <span className="breadcrumb-separator"> / </span>
-            <span className="breadcrumb-current">Product Management</span>
+            <span className="breadcrumb-current">{currentSection.label}</span>
           </div>
           <div className="topbar-account">
             <span className="topbar-username">{user?.username}</span>

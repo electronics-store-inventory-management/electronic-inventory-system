@@ -4,19 +4,9 @@ import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/auth/LoginPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
+import SuppliersPage from "./pages/suppliers/SuppliersPage";
+import TransactionsPage from "./pages/transactions/TransactionsPage";
 import ReportsPage from "./pages/reports/ReportsPage";
-
-function PlaceholderPage({ title }) {
-  return (
-    <section>
-      <p className="eyebrow">WORKSPACE</p>
-      <h1>{title}</h1>
-      <p className="page-description">
-        This module will be added by its assigned contributor.
-      </p>
-    </section>
-  );
-}
 
 export default function App() {
   return (
@@ -27,16 +17,9 @@ export default function App() {
 
         <Route path="products" element={<ProductsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
+        <Route path="suppliers" element={<SuppliersPage />} />
+        <Route path="transactions" element={<TransactionsPage />} />
         <Route path="reports" element={<ReportsPage />} />
-
-        <Route
-          path="suppliers"
-          element={<PlaceholderPage title="Suppliers" />}
-        />
-        <Route
-          path="transactions"
-          element={<PlaceholderPage title="Transactions" />}
-        />
 
         <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
