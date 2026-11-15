@@ -1,30 +1,5 @@
-import { useEffect, useState } from "react";
 import Icon from "../../components/Icon";
 import "./Workspace.css";
-
-export function useLoad(loader, deps = []) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const refresh = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      setData(await loader());
-    } catch (error) {
-      setError(error.message || "Could not load data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refresh();
-  }, deps);
-
-  return { data, loading, error, refresh };
-}
 
 export function Alert({ children, success = false }) {
   return children ? (

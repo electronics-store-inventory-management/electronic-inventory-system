@@ -194,6 +194,16 @@
   gap: var(--space-2);
 }
 
+.topbar-account-label {
+  display: grid;
+  min-width: 0;
+}
+
+.topbar-role {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
 .topbar-username {
   max-width: 10rem;
   overflow: hidden;
@@ -333,8 +343,7 @@
 
 @media (max-width: 26rem) {
   .navigation {
-    grid-auto-columns: minmax(0, 1fr);
-    gap: 0;
+    gap: var(--space-1);
     padding-inline: var(--space-1);
   }
 

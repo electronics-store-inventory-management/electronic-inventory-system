@@ -4,9 +4,21 @@ from app.core.errors import BadRequestError, ConflictError
 from app.models.product import Product
 from app.models.transaction import InventoryTransaction
 from app.schemas.product import ProductCreate, ProductUpdate
+from app.services.audit_service import log_audit
 
 
-def create_product(db: Session, product_data: ProductCreate) -> Product:
+def _commit_change(db: Session, product: Product, action: str, user_id: int | None) -> None:
+    try:
+        if user_id is not None:
+            db.flush()
+            log_audit(db, user_id=user_id, action=action, entity="product", entity_id=product.id)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
+def create_product(db: Session, product_data: ProductCreate, *, user_id: int | None = None) -> Product:
     product = Product(
         name=product_data.name,
         category=product_data.category,
@@ -16,7 +28,7 @@ def create_product(db: Session, product_data: ProductCreate) -> Product:
     )
 
     db.add(product)
-    db.commit()
+    _commit_change(db, product, "create_product", user_id)
     db.refresh(product)
 
     return product
@@ -51,6 +63,7 @@ def update_product(
     db: Session,
     product_id: int,
     product_data: ProductUpdate,
+    *, user_id: int | None = None,
 ) -> Product | None:
 
     product = get_product(db, product_id)
@@ -66,13 +79,13 @@ def update_product(
     for field, value in update_data.items():
         setattr(product, field, value)
 
-    db.commit()
+    _commit_change(db, product, "update_product", user_id)
     db.refresh(product)
 
     return product
 
 
-def delete_product(db: Session, product_id: int) -> Product | None:
+def delete_product(db: Session, product_id: int, *, user_id: int | None = None) -> Product | None:
     product = get_product(db, product_id)
 
     if product is None:
@@ -88,6 +101,6 @@ def delete_product(db: Session, product_id: int) -> Product | None:
         raise ConflictError("Product cannot be deleted while inventory transactions exist")
 
     db.delete(product)
-    db.commit()
+    _commit_change(db, product, "delete_product", user_id)
 
     return product

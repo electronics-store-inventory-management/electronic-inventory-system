@@ -42,7 +42,7 @@ def add_product(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_admin),
 ):
-    return create_product(db, product_data)
+    return create_product(db, product_data, user_id=current_user["id"])
 
 
 @router.get(
@@ -110,6 +110,7 @@ def update_product_details(
         db,
         product_id,
         product_data,
+        user_id=current_user["id"],
     )
 
     if product is None:
@@ -130,7 +131,7 @@ def remove_product(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_admin),
 ):
-    product = delete_product(db, product_id)
+    product = delete_product(db, product_id, user_id=current_user["id"])
 
     if product is None:
         raise HTTPException(

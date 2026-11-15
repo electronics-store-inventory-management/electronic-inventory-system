@@ -1,10 +1,14 @@
 
 from fastapi import FastAPI, Request
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.auth_limits import AuthBodyLimit, AuthRateLimiter
 from app.core.errors import AppError
+from app.database.database import engine, settings
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.auth import router as auth_router
 from app.routers.product import router as product_router
@@ -16,14 +20,21 @@ from app.routers.transactions import router as transactions_router
 app = FastAPI(
     title="Electronics Store Inventory Management System",
     version="1.0.0",
+    debug=False,
+    docs_url=None if settings.APP_ENV == "production" else "/docs",
+    redoc_url=None if settings.APP_ENV == "production" else "/redoc",
+    openapi_url=None if settings.APP_ENV == "production" else "/openapi.json",
 )
+app.state.auth_limiter = AuthRateLimiter(trusted_proxies=settings.trusted_proxy_networks())
 
+app.add_middleware(AuthBodyLimit)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[settings.FRONTEND_ORIGIN],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+    expose_headers=["Retry-After"],
 )
 
 
@@ -40,10 +51,28 @@ def request_validation_error_handler(request: Request, exc: RequestValidationErr
     # Do not echo submitted values: validation errors may contain passwords,
     # tokens, supplier contacts, or inventory data.
     errors = [
-        {"loc": error.get("loc", ()), "msg": error.get("msg", "Invalid value"), "type": error.get("type", "value_error")}
+        {"loc": error.get("loc", ()) if error.get("type") != "extra_forbidden" else ("body",),
+         "msg": error.get("msg", "Invalid value"), "type": error.get("type", "value_error")}
         for error in exc.errors()
     ]
     return JSONResponse(status_code=422, content={"detail": errors})
+
+
+@app.exception_handler(OperationalError)
+def database_unavailable(request: Request, exc: OperationalError):
+    return JSONResponse(status_code=503, content={"detail": "Database is temporarily unavailable."})
+
+
+@app.exception_handler(SQLAlchemyError)
+def database_error(request: Request, exc: SQLAlchemyError):
+    return JSONResponse(status_code=500, content={"detail": "Unable to complete the database operation."})
+
+
+@app.get("/health")
+def health():
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    return {"status": "ok"}
 
 
 app.include_router(product_router)

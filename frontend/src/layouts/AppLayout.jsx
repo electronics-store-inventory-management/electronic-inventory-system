@@ -5,6 +5,7 @@ import Icon from "../components/Icon";
 import "./AppLayout.css";
 
 const navigation = [
+  { label: "Dashboard", path: "/", icon: "inventory" },
   { label: "Products", title: "Product Management", path: "/products", icon: "products" },
   { label: "Inventory", path: "/inventory", icon: "inventory" },
   { label: "Suppliers", path: "/suppliers", icon: "suppliers" },
@@ -67,7 +68,10 @@ export default function AppLayout() {
             {username && (
               <div className="topbar-identity">
                 <span className="account-avatar" aria-hidden="true">{initial}</span>
-                <span className="topbar-username" title={username}>{username}</span>
+                <div className="topbar-account-label">
+                  <span className="topbar-username" title={username}>{username}</span>
+                  <span className="topbar-role">{user.role === "admin" ? "Administrator" : "Employee"}</span>
+                </div>
               </div>
             )}
             <button className="ui-button ui-button--secondary logout-button" type="button" onClick={logout}>

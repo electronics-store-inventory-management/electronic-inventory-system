@@ -1,5 +1,24 @@
 import { apiRequest } from "./api";
 
+export async function getAccount({ accessToken, signal } = {}) {
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+  const account = await apiRequest("/auth/me", { headers, signal });
+  if (!account || typeof account.username !== "string" || !["admin", "employee"].includes(account.role)) {
+    throw new Error("The account response was not valid.");
+  }
+  return account;
+}
+
+export async function register(username, password) {
+  try {
+    await apiRequest("/auth/register", { method: "POST", body: JSON.stringify({ username, password }) });
+  } catch (error) {
+    if (error.status === 403) throw new Error("Public signup is currently unavailable.", { cause: error });
+    if (error.status) throw error;
+    throw new Error("Unable to connect. Check your connection and try again.", { cause: error });
+  }
+}
+
 export async function login(username, password) {
   try {
     const result = await apiRequest("/auth/login", {
@@ -25,6 +44,7 @@ export async function login(username, password) {
     if (error.status === 401) {
       throw new Error("Username or password is incorrect.", { cause: error });
     }
+    if (error.status === 429) throw error;
     if (error.status) {
       throw new Error("Unable to sign in right now. Please try again.", { cause: error });
     }

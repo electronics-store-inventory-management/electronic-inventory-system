@@ -1,11 +1,11 @@
 import { reportService } from "../../services/reportService";
 import StockBadge from "../shared/StockBadge";
+import { useLoad } from "../shared/useLoad";
 import { getStockStatus, stockStatus } from "../shared/stockStatus";
 import {
   LoadingOrError,
   PageHeading,
   RefreshButton,
-  useLoad,
   WorkspaceCard,
   WorkspaceState,
   WorkspaceStats,
@@ -13,7 +13,7 @@ import {
 } from "../shared/WorkspaceTools";
 
 export default function ReportsPage() {
-  const { data: report, loading, error, refresh } = useLoad(reportService.inventory, []);
+  const { data: report, loading, error, refresh } = useLoad(reportService.inventory);
   const products = report.products || [];
   // The API subset applies a strict below-minimum cutoff. Use the full list for
   // the UI rule, which includes items exactly at their minimum.

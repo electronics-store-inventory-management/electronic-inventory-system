@@ -31,7 +31,7 @@
 
 .workspace-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
   gap: var(--space-4);
   margin: 0;
 }
@@ -305,11 +305,11 @@
     gap: var(--space-2);
   }
 
-  .workspace-stat:last-child {
+  .workspace-stat:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
 
-  .workspace-stat:last-child dt {
+  .workspace-stat:last-child:nth-child(odd) dt {
     display: flex;
     align-items: center;
     margin-block-end: var(--space-2);

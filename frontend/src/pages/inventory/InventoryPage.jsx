@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { inventoryService } from "../../services/inventoryService";
 import StockBadge from "../shared/StockBadge";
+import { useLoad } from "../shared/useLoad";
 import { getStockStatus, stockStatus } from "../shared/stockStatus";
 import {
   LoadingOrError,
   PageHeading,
   RefreshButton,
-  useLoad,
   WorkspaceCard,
   WorkspaceState,
   WorkspaceStats,
@@ -14,7 +14,7 @@ import {
 } from "../shared/WorkspaceTools";
 
 export default function InventoryPage() {
-  const { data: products, loading, error, refresh } = useLoad(inventoryService.listProducts, []);
+  const { data: products, loading, error, refresh } = useLoad(inventoryService.listProducts);
   const low = useMemo(
     () => products.filter((product) => getStockStatus(product) === stockStatus.low),
     [products],
