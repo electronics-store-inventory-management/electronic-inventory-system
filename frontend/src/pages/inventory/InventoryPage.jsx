@@ -1,2 +1,100 @@
-import {useMemo} from "react";import {inventoryService} from "../../services/inventoryService";import {LoadingOrError,PageHeading,useLoad} from "../shared/WorkspaceTools";import "../shared/Workspace.css";
-export default function InventoryPage(){const{data:products,loading,error,refresh}=useLoad(inventoryService.listProducts,[]);const low=useMemo(()=>products.filter(p=>+p.min_stock_level>0&&+p.quantity<+p.min_stock_level),[products]);const units=products.reduce((s,p)=>s+(+p.quantity||0),0),value=products.reduce((s,p)=>s+(+p.price||0)*(+p.quantity||0),0);return <section className="workspace-page"><PageHeading title="Inventory" description="Monitor available stock, reorder thresholds and inventory value." action={<button className="workspace-button secondary" onClick={refresh}>Refresh</button>}/><div className="workspace-stats"><div className="workspace-stat"><span>Products tracked</span><strong>{products.length}</strong></div><div className="workspace-stat"><span>Total units</span><strong>{units.toLocaleString()}</strong></div><div className="workspace-stat"><span>Low-stock items</span><strong>{low.length}</strong></div></div><div className="workspace-card"><div className="workspace-card-head"><h2>Stock overview</h2><strong>₹{value.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><LoadingOrError loading={loading} error={error} empty={!products.length&&"No products found."} onRetry={refresh}/>{!loading&&!error&&products.length>0&&<div className="workspace-table-wrap"><table className="workspace-table"><thead><tr><th>Product</th><th>Category</th><th>Available</th><th>Minimum</th><th>Unit price</th><th>Status</th></tr></thead><tbody>{products.map(p=>{const q=+p.quantity,m=+p.min_stock_level,lo=m>0&&q<m;return <tr key={p.id}><td><b>{p.name}</b> <small>#{p.id}</small></td><td>{p.category}</td><td>{q}</td><td>{m}</td><td>₹{(+p.price).toLocaleString("en-IN")}</td><td>{q===0?"Out of stock":lo?<span className="workspace-badge">Low stock</span>:"In stock"}</td></tr>})}</tbody></table></div>}</div></section>}
+import { useMemo } from "react";
+import { inventoryService } from "../../services/inventoryService";
+import StockBadge from "../shared/StockBadge";
+import { useLoad } from "../shared/useLoad";
+import { getStockStatus, stockStatus } from "../shared/stockStatus";
+import {
+  LoadingOrError,
+  PageHeading,
+  RefreshButton,
+  WorkspaceCard,
+  WorkspaceState,
+  WorkspaceStats,
+  WorkspaceTable,
+} from "../shared/WorkspaceTools";
+
+export default function InventoryPage() {
+  const { data: products, loading, error, refresh } = useLoad(inventoryService.listProducts);
+  const low = useMemo(
+    () => products.filter((product) => getStockStatus(product) === stockStatus.low),
+    [products],
+  );
+  const units = products.reduce((sum, product) => sum + (+product.quantity || 0), 0);
+  const value = products.reduce((sum, product) => sum + (+product.price || 0) * (+product.quantity || 0), 0);
+  const metrics = [
+    { title: "Products tracked", value: products.length, icon: "products", tone: "info" },
+    { title: "Total units", value: units.toLocaleString(), icon: "inventory", tone: "success" },
+    { title: "Low-stock items", value: low.length, icon: "warning", tone: "warning" },
+  ];
+
+  return (
+    <div className="workspace-page">
+      <PageHeading
+        title="Inventory"
+        description="Monitor available stock, reorder thresholds and inventory value."
+        action={<RefreshButton onClick={refresh}>Refresh</RefreshButton>}
+      />
+      <WorkspaceStats label="Inventory summary" metrics={metrics} loading={loading} error={error} />
+      <WorkspaceCard
+        id="stock-overview"
+        title="Stock overview"
+        detail={
+          <div className="workspace-card-value">
+            <span>Inventory value</span>
+            <strong>{loading || error ? "—" : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}</strong>
+          </div>
+        }
+      >
+        <LoadingOrError
+          loading={loading}
+          error={error}
+          loadingTitle="Loading inventory…"
+          errorTitle="Could not load inventory"
+          onRetry={refresh}
+        />
+        {!loading && !error && (
+          products.length === 0 ? (
+            <WorkspaceState
+              title="No products in inventory"
+              description="Stock levels will appear here when products are added to the catalogue."
+              icon="inventory"
+            />
+          ) : (
+            <WorkspaceTable label="Stock overview table" wide>
+              <thead>
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  <th scope="col" className="workspace-number">Available</th>
+                  <th scope="col" className="workspace-number">Minimum</th>
+                  <th scope="col" className="workspace-number">Unit price</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => {
+                  const quantity = +product.quantity;
+                  const minimum = +product.min_stock_level;
+
+                  return (
+                    <tr key={product.id}>
+                      <th scope="row">
+                        {product.name}
+                        <small className="workspace-product-id">#{product.id}</small>
+                      </th>
+                      <td><span className="ui-badge workspace-category">{product.category}</span></td>
+                      <td className="workspace-number">{quantity}</td>
+                      <td className="workspace-number">{minimum}</td>
+                      <td className="workspace-number">₹{(+product.price).toLocaleString("en-IN")}</td>
+                      <td><StockBadge product={product} className="workspace-stock-status" /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </WorkspaceTable>
+          )
+        )}
+      </WorkspaceCard>
+    </div>
+  );
+}

@@ -217,5 +217,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Local frontend environment
-frontend/.env.development
+# Local environments and backup artifacts
+.env.*
+!.env.example
+/backend/backups/
+*.dump
+*.backup
+/frontend-for-claude.zip

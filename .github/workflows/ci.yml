@@ -19,7 +19,8 @@ jobs:
       DATABASE_PASSWORD: postgres
       DATABASE_HOST: localhost
       DATABASE_PORT: 5432
-      DATABASE_NAME: electronics_store_db
+      DATABASE_NAME: electrostock_test_ci
+      ELECTROSTOCK_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/electrostock_test_ci
 
     services:
       postgres:
@@ -27,11 +28,11 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: electronics_store_db
+          POSTGRES_DB: electrostock_test_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d electronics_store_db"
+          --health-cmd="pg_isready -U postgres -d electrostock_test_ci"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -61,3 +62,22 @@ jobs:
         working-directory: backend
         run: |
           python -m pytest tests/integration -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+        env:
+          VITE_API_BASE_URL: https://api.example.com

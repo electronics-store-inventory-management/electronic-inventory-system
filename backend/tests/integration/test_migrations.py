@@ -3,6 +3,7 @@ from datetime import datetime
 
 from alembic import command
 from alembic.config import Config
+import pytest
 from sqlalchemy import (
     Column,
     DateTime,
@@ -15,18 +16,19 @@ from sqlalchemy import (
     inspect,
     insert,
     select,
+    text,
 )
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
-def upgrade_database(engine):
+def upgrade_database(engine, revision="head"):
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
     with engine.connect() as connection:
         config.attributes["connection"] = connection
-        command.upgrade(config, "head")
+        command.upgrade(config, revision)
 
 
 def test_migrations_initialize_fresh_database(tmp_path):
@@ -42,7 +44,9 @@ def test_migrations_initialize_fresh_database(tmp_path):
         "suppliers",
         "product_suppliers",
         "alembic_version",
+        "users",
     }.issubset(set(inspector.get_table_names()))
+    assert any(index["unique"] and index["column_names"] == ["username"] for index in inspector.get_indexes("users"))
     assert "idempotency_key" in {
         column["name"] for column in inspector.get_columns("inventory_transactions")
     }
@@ -106,8 +110,16 @@ def test_migrations_preserve_existing_database_rows(tmp_path):
         Column("entity_id", Integer, nullable=False),
         Column("timestamp", DateTime(timezone=True), nullable=False),
     )
+    users = Table(
+        "users", metadata,
+        Column("id", Integer, primary_key=True),
+        Column("username", String(50), nullable=False, unique=True),
+        Column("hashed_password", String(255), nullable=False),
+        Column("role", String(20), nullable=False),
+    )
     metadata.create_all(engine)
     with engine.begin() as connection:
+        connection.execute(insert(users).values(id=8, username="existing_admin", hashed_password="fixture-hash", role="admin"))
         connection.execute(
             insert(products).values(
                 id=41,
@@ -159,6 +171,7 @@ def test_migrations_preserve_existing_database_rows(tmp_path):
         "inventory_transactions", migrated_metadata, autoload_with=engine
     )
     with engine.connect() as connection:
+        assert connection.execute(select(users)).one() == (8, "existing_admin", "fixture-hash", "admin")
         product = connection.execute(select(products)).one()
         transaction = connection.execute(
             select(migrated_transactions).where(migrated_transactions.c.id == 72)
@@ -179,3 +192,33 @@ def test_migrations_preserve_existing_database_rows(tmp_path):
     assert "idempotency_key" in {
         column["name"] for column in inspect(engine).get_columns("inventory_transactions")
     }
+
+
+@pytest.mark.parametrize(("schema", "extra", "reason"), [
+    ("id INTEGER PRIMARY KEY, username VARCHAR(50) NOT NULL, hashed_password VARCHAR(255) NOT NULL, role VARCHAR(20) NOT NULL",
+     "", "username requires"),
+    ("id INTEGER PRIMARY KEY, username VARCHAR(50) NOT NULL, hashed_password VARCHAR(255) NOT NULL, role VARCHAR(20) NOT NULL",
+     "CREATE UNIQUE INDEX partial_username ON users(username) WHERE role = 'employee'", "username requires"),
+    ("id INTEGER PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, hashed_password VARCHAR(255) NOT NULL",
+     "", "role must"),
+    ("id INTEGER NOT NULL, username VARCHAR(50) NOT NULL UNIQUE, hashed_password VARCHAR(255) NOT NULL, role VARCHAR(20) NOT NULL",
+     "", "id must be the sole primary key"),
+])
+def test_migration_rejects_legacy_schema_and_preserves_rows(tmp_path, schema, extra, reason):
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy.sqlite'}")
+    with engine.begin() as connection:
+        connection.execute(text(f"CREATE TABLE users ({schema})"))
+        columns = [column["name"] for column in inspect(connection).get_columns("users")]
+        values = {"id": 7, "username": "legacy_admin", "hashed_password": "fixture-hash", "role": "admin"}
+        connection.execute(text(
+            f"INSERT INTO users ({', '.join(columns)}) VALUES ({', '.join(':' + name for name in columns)})"
+        ), values)
+        if extra:
+            connection.execute(text(extra))
+    upgrade_database(engine, "20261108_01")
+    with pytest.raises(RuntimeError, match=reason):
+        upgrade_database(engine)
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT * FROM users")).one() == tuple(values[name] for name in columns)
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "20261108_01"
+    engine.dispose()

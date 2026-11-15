@@ -47,20 +47,6 @@ def mark_database_up(db: Session, now: datetime | None = None):
     record_check(db, "up", now)
 
 
-@router.get("/health")
-def health_check(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        mark_database_up(db)
-        return {"status": "ok", "application": "up", "database": "up"}
-    except SQLAlchemyError:
-        global _database_outage_started
-        db.rollback()
-        if _database_outage_started is None:
-            _database_outage_started = datetime.now(timezone.utc)
-        return JSONResponse(status_code=503, content={"status": "unavailable", "application": "up", "database": "down"})
-
-
 @router.get("/availability")
 def get_availability(
     start: datetime = Query(...), end: datetime = Query(...),

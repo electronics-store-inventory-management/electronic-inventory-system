@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.database import Base, get_db
 from app.main import app
+from app import main as main_module
 from app.services.availability_service import record_check
 
 engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -17,6 +18,8 @@ TestingSession = sessionmaker(bind=engine)
 @pytest.fixture
 def client():
     Base.metadata.create_all(engine)
+    original_engine = main_module.engine
+    main_module.engine = engine
     def override_db():
         db = TestingSession()
         try:
@@ -28,28 +31,24 @@ def client():
     yield TestClient(app)
     app.dependency_overrides.clear()
     app.dependency_overrides.update(saved)
+    main_module.engine = original_engine
     Base.metadata.drop_all(engine)
 
 
 def test_health_success(client):
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "application": "up", "database": "up"}
+    assert response.json() == {"status": "ok"}
 
 
-def test_health_database_failure(client):
-    class BrokenSession:
-        def execute(self, statement):
-            from sqlalchemy.exc import OperationalError
-            raise OperationalError("SELECT 1", {}, RuntimeError("database offline"))
-        def rollback(self):
-            pass
-    def override_db():
-        yield BrokenSession()
-    app.dependency_overrides[get_db] = override_db
+def test_health_database_failure(client, monkeypatch):
+    def unavailable():
+        from sqlalchemy.exc import OperationalError
+        raise OperationalError("SELECT 1", {}, RuntimeError("database offline"))
+    monkeypatch.setattr(main_module.engine, "connect", unavailable)
     response = client.get("/health")
     assert response.status_code == 503
-    assert response.json()["database"] == "down"
+    assert "database" in response.json()["detail"].lower()
 
 
 def test_report_between_health_transitions_and_overlapping_maintenance(client):

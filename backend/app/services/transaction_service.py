@@ -128,8 +128,12 @@ def record_transaction(
 def get_transactions(
     db: Session,
     product_id: int | None = None,
+    *, limit: int | None = None,
 ) -> list[InventoryTransaction]:
     query = db.query(InventoryTransaction)
     if product_id is not None:
         query = query.filter(InventoryTransaction.product_id == product_id)
-    return query.order_by(InventoryTransaction.date.desc()).all()
+    query = query.order_by(InventoryTransaction.date.desc(), InventoryTransaction.id.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()

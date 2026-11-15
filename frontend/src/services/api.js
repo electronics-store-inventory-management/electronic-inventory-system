@@ -1,38 +1,19 @@
-import { AUTH_SESSION_KEY } from "../auth/session";
+import { readStoredSession, removeStoredSession } from "../auth/session.js";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+  (import.meta.env?.DEV ? "http://localhost:8000" : "");
 
-function readStoredSession() {
-  try {
-    return JSON.parse(window.sessionStorage.getItem(AUTH_SESSION_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function clearSessionIfCurrent(accessToken, sessionId) {
-  if (!accessToken) return false;
-
-  const currentSession = readStoredSession();
-  if (
-    currentSession?.accessToken !== accessToken ||
-    (currentSession?.sessionId || null) !== sessionId
-  ) {
-    return false;
-  }
-
-  window.sessionStorage.removeItem(AUTH_SESSION_KEY);
+function reportUnauthorized(accessToken, sessionId) {
+  removeStoredSession(accessToken, sessionId);
   window.dispatchEvent(
     new CustomEvent("auth:unauthorized", {
       detail: { accessToken, sessionId },
     }),
   );
-  return true;
 }
 
 function getExpectedErrorDetail(status, detail) {
-  if (![400, 404, 409, 422].includes(status)) return "";
+  if (![400, 404, 409, 422, 429].includes(status)) return "";
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
     return detail
@@ -44,23 +25,24 @@ function getExpectedErrorDetail(status, detail) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const isLoginRequest = path === "/auth/login";
-  const session = isLoginRequest ? null : readStoredSession();
+  const publicAuthRequest = path === "/auth/login" || path === "/auth/register";
+  const headers = new Headers(options.headers || {});
+  const session = publicAuthRequest || headers.has("Authorization") ? null : readStoredSession();
   const requestToken = session?.accessToken || null;
   const requestSessionId = session?.sessionId || null;
   const tokenExpired = Boolean(
     requestToken &&
       (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()),
   );
-  const headers = new Headers(options.headers || {});
-  if (isLoginRequest) headers.delete("Authorization");
+  if (publicAuthRequest) headers.delete("Authorization");
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json");
   }
-  if (!isLoginRequest && requestToken && !tokenExpired) {
+  if (requestToken && !tokenExpired) {
     headers.set("Authorization", `Bearer ${requestToken}`);
   } else if (tokenExpired) {
-    clearSessionIfCurrent(requestToken, requestSessionId);
+    reportUnauthorized(requestToken, requestSessionId);
+    throw Object.assign(new Error("Your session has expired."), { status: 401 });
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -87,8 +69,8 @@ export async function apiRequest(path, options = {}) {
     );
     error.status = response.status;
 
-    if (response.status === 401 && !isLoginRequest) {
-      clearSessionIfCurrent(requestToken, requestSessionId);
+    if (response.status === 401 && session) {
+      reportUnauthorized(requestToken, requestSessionId);
     }
     throw error;
   }

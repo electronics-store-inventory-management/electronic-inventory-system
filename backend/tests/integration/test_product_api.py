@@ -417,13 +417,15 @@ def test_register_user_hashes_password_and_login_returns_token():
         )
 
         assert register_response.status_code == 201
-        assert register_response.json()["username"] == username
-        assert register_response.json()["role"] == "employee"
+        account = register_response.json()
+        assert account["username"] == username
+        assert account["role"] == "employee"
 
         db = TestingSessionLocal()
         try:
             user = db.query(User).filter(User.username == username).first()
             assert user is not None
+            assert (user.id, user.role) == (account["id"], "employee")
             assert user.hashed_password != password
             assert verify_password(password, user.hashed_password)
         finally:
@@ -435,11 +437,75 @@ def test_register_user_hashes_password_and_login_returns_token():
         )
 
         assert login_response.status_code == 200
-        assert login_response.json()["token_type"] == "bearer"
-        assert login_response.json()["access_token"]
+        login_data = login_response.json()
+        assert set(login_data) == {"access_token", "token_type", "expires_in"}
+        assert login_data["token_type"] == "bearer"
+        assert login_data["expires_in"] > 0
+        token = login_data["access_token"]
+        token_payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=["HS256"],
+        )
+        assert set(token_payload) == {"sub", "iat", "exp"}
+        assert token_payload["sub"] == str(account["id"])
+        assert username not in str(token_payload)
+        assert "employee" not in token_payload.values()
+
+        me_response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me_response.status_code == 200
+        assert me_response.json() == account
+        assert password not in register_response.text
+        assert password not in login_response.text
+        assert "hashed_password" not in register_response.text
     finally:
         teardown_database()
 
+
+def test_auth_validation_errors_do_not_echo_password():
+    setup_database()
+    try:
+        secret = "Sensitive1!"
+        response = client.post(
+            "/auth/register",
+            json={"username": "valid_user", "password": secret},
+        )
+        assert response.status_code == 422
+        assert secret not in response.text
+    finally:
+        teardown_database()
+
+
+def test_protected_responses_do_not_include_credentials_or_tokens():
+    setup_database()
+    try:
+        response = client.get("/products/", headers=EMPLOYEE_HEADERS)
+        assert response.status_code == 200
+        assert "hashed_password" not in response.text
+        assert "access_token" not in response.text
+        assert "test-only-secret-key" not in response.text
+    finally:
+        teardown_database()
+
+
+def test_employee_can_read_products_but_cannot_access_admin_report():
+    setup_database()
+    try:
+        created = client.post(
+            "/products/",
+            json={"name": "Permitted Read", "category": "Test", "price": 10, "quantity": 4},
+            headers=ADMIN_HEADERS,
+        )
+        assert created.status_code == 201
+
+        product_response = client.get("/products/", headers=EMPLOYEE_HEADERS)
+        assert product_response.status_code == 200
+        assert product_response.json()[0]["name"] == "Permitted Read"
+
+        report_response = client.get("/reports/", headers=EMPLOYEE_HEADERS)
+        assert report_response.status_code == 403
+    finally:
+        teardown_database()
 
 def test_register_rejects_duplicate_username():
     setup_database()
@@ -454,6 +520,59 @@ def test_register_rejects_duplicate_username():
 
         assert first_response.status_code == 201
         assert second_response.status_code == 409
+    finally:
+        teardown_database()
+
+
+def test_public_registration_cannot_assign_admin_role():
+    from app.models.user import User
+
+    setup_database()
+    try:
+        with TestingSessionLocal() as db:
+            original_accounts = db.query(User.username, User.role).order_by(User.id).all()
+
+        response = client.post(
+            "/auth/register",
+            json={
+                "username": "cannot_be_admin",
+                "password": "SecureTestPassword123!",
+                "role": "admin",
+            },
+        )
+
+        assert response.status_code == 422
+        assert any(error["type"] == "extra_forbidden" for error in response.json()["detail"])
+        with TestingSessionLocal() as db:
+            assert db.query(User.username, User.role).order_by(User.id).all() == original_accounts
+    finally:
+        teardown_database()
+
+
+def test_employee_is_denied_admin_apis_even_with_admin_role_claim():
+    from tests.auth_helpers import make_test_headers
+
+    setup_database()
+    try:
+        # The test token claims admin, but user 2 is an employee in the database.
+        forged_claim_headers = make_test_headers(2, "employee", "admin")
+        responses = [
+            client.get("/products/low-stock", headers=EMPLOYEE_HEADERS),
+            client.get("/reports/", headers=EMPLOYEE_HEADERS),
+            client.get("/audit-logs/", headers=EMPLOYEE_HEADERS),
+            client.post(
+                "/products/",
+                json={"name": "Denied", "category": "Test", "price": 1, "quantity": 1},
+                headers=EMPLOYEE_HEADERS,
+            ),
+            client.post(
+                "/products/",
+                json={"name": "Forged", "category": "Test", "price": 1, "quantity": 1},
+                headers=forged_claim_headers,
+            ),
+        ]
+
+        assert [response.status_code for response in responses] == [403] * len(responses)
     finally:
         teardown_database()
 
