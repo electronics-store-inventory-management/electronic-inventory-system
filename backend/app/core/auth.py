@@ -32,6 +32,7 @@ def get_current_user(
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[ALGORITHM],
+            options={"require": ["sub", "exp"]},
         )
         user_id = int(payload["sub"])
     except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):

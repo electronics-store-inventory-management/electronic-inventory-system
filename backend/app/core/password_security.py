@@ -1,4 +1,5 @@
-﻿from pwdlib import PasswordHash
+from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 
 password_hash = PasswordHash.recommended()
 
@@ -10,6 +11,5 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed_password: str) -> bool:
     try:
         return password_hash.verify(password, hashed_password)
-    except (ValueError, TypeError):
-        # Corrupt or legacy hashes must fail closed without leaking hash details.
+    except (UnknownHashError, TypeError, ValueError):
         return False

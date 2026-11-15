@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import get_current_user
 from app.database.database import SessionLocal
 from app.schemas.transaction import InventoryTransactionCreate, InventoryTransactionResponse
 from app.services.transaction_service import get_transactions, record_transaction
@@ -55,7 +55,8 @@ def add_transaction(
 )
 def list_transactions(
     product_id: int | None = Query(default=None, gt=0),
+    limit: int | None = Query(default=None, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    return get_transactions(db, product_id=product_id)
+    return get_transactions(db, product_id=product_id, limit=limit)

@@ -1,12 +1,26 @@
 export const AUTH_SESSION_KEY = "electrostock.auth";
 
-// The token claim drives display only. The API authorizes each request.
-export function getSessionRole(accessToken) {
+export function readStoredSession() {
   try {
-    const payload = accessToken.split(".")[1];
-    const { role } = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return role === "admin" || role === "employee" ? role : null;
+    return JSON.parse(window.sessionStorage.getItem(AUTH_SESSION_KEY) || "null");
   } catch {
     return null;
   }
+}
+
+export function isSameSession(session, accessToken, sessionId) {
+  return Boolean(accessToken && session?.accessToken === accessToken &&
+    (session.sessionId ?? null) === (sessionId ?? null));
+}
+
+export function removeStoredSession(accessToken, sessionId) {
+  if (isSameSession(readStoredSession(), accessToken, sessionId)) {
+    window.sessionStorage.removeItem(AUTH_SESSION_KEY);
+  }
+}
+
+export function clearAuthSession(setSession, accessToken, sessionId) {
+  removeStoredSession(accessToken, sessionId);
+  // Storage may already have been cleared by the API before its event was heard.
+  setSession((current) => isSameSession(current, accessToken, sessionId) ? null : current);
 }

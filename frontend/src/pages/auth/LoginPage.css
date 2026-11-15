@@ -204,6 +204,28 @@
   height: 1rem;
 }
 
+.login-heading p:empty {
+  display: none;
+}
+
+.login-field small {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.login-field .auth-field-error {
+  color: var(--color-rose-ink);
+}
+
+.auth-notice {
+  margin: 0 0 var(--space-4);
+}
+
+.login-footer a {
+  color: var(--color-primary);
+  font-weight: var(--weight-bold);
+}
+
 .login-status {
   position: absolute;
   width: 1px;
