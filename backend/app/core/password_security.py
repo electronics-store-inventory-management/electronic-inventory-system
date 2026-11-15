@@ -8,4 +8,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return password_hash.verify(password, hashed_password)
+    try:
+        return password_hash.verify(password, hashed_password)
+    except (ValueError, TypeError):
+        # Corrupt or legacy hashes must fail closed without leaking hash details.
+        return False

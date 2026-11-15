@@ -19,7 +19,7 @@ def create_supplier(
     existing = get_supplier_by_name(db, supplier_data.name)
 
     if existing is not None:
-        raise ConflictError(f"Supplier with name '{supplier_data.name}' already exists")
+        raise ConflictError("Supplier already exists")
 
     supplier = Supplier(
         name=supplier_data.name,
@@ -69,7 +69,7 @@ def update_supplier(
         new_name = update_data["name"]
         existing = get_supplier_by_name(db, new_name)
         if existing is not None and existing.id != supplier_id:
-            raise ConflictError(f"Supplier with name '{new_name}' already exists")
+            raise ConflictError("Supplier already exists")
         supplier.name = new_name
 
     if "email" in update_data and update_data["email"] is not None:
