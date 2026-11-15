@@ -23,13 +23,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     APP_ENV: Literal["development", "production"] = "development"
-    DATABASE_URL: str = ""
     DATABASE_SSL_ROOT_CERT: str = ""
     DATABASE_USER: str = ""
     DATABASE_PASSWORD: str = ""
     DATABASE_HOST: str = "localhost"
     DATABASE_PORT: int = 5432
     DATABASE_NAME: str = "electronics_store_db"
+    DATABASE_URL: str | None = None
     JWT_SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, ge=1, le=60)
     FRONTEND_ORIGIN: str = "http://localhost:5173"

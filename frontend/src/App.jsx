@@ -6,6 +6,8 @@ import SignupPage from "./pages/auth/SignupPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
+import SuppliersPage from "./pages/suppliers/SuppliersPage";
+import TransactionsPage from "./pages/transactions/TransactionsPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import PlaceholderPage from "./pages/shared/PlaceholderPage";
 
@@ -19,17 +21,16 @@ export default function App() {
 
         <Route path="products" element={<ProductsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
-        <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
-
+        <Route path="suppliers" element={<SuppliersPage />} />
+        <Route path="transactions" element={<TransactionsPage />} />
         <Route
-          path="suppliers"
-          element={<PlaceholderPage title="Suppliers" />}
+          path="reports"
+          element={
+            <ProtectedRoute role="admin">
+              <ReportsPage />
+            </ProtectedRoute>
+          }
         />
-        <Route
-          path="transactions"
-          element={<PlaceholderPage title="Transactions" />}
-        />
-
         <Route path="*" element={<Navigate to="/products" replace />} />
       </Route>
     </Routes>

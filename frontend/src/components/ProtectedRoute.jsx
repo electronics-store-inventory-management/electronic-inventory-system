@@ -3,7 +3,7 @@ import { useAuth } from "../auth/useAuth";
 import AuthSessionStatus from "../pages/auth/AuthSessionStatus";
 import { PageHeading, WorkspaceState } from "../pages/shared/WorkspaceTools";
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, role, adminOnly = false }) {
   const { isAuthenticated, session, user } = useAuth();
   const location = useLocation();
 
@@ -19,13 +19,22 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     );
   }
 
-  if (adminOnly && user.role !== "admin") {
+<  if ((adminOnly || role === "admin") && user?.role !== "admin") {
     return (
       <div className="workspace-page">
         <PageHeading title="Reports" />
-        <WorkspaceState title="Reports require administrator access" icon="lock" tone="error" />
+        <WorkspaceState
+          title="Reports require administrator access"
+          icon="lock"
+          tone="error"
+        />
       </div>
     );
+  }
+
+  if (role && user?.role !== role) {
+    return <Navigate to="/products" replace />;
+  }
   }
 
   return children;

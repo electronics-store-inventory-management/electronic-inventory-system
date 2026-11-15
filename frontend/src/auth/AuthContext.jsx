@@ -3,12 +3,15 @@ import { getAccount, login as requestLogin } from "../services/authService";
 import { AUTH_SESSION_KEY, clearAuthSession } from "./session";
 import { AuthContext } from "./AuthContextValue";
 
+const VALID_ROLES = new Set(["admin", "employee"]);
+
 function readSession() {
   try {
     const session = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY) || "null");
     if (
       !session?.accessToken ||
       !session.username ||
+      !VALID_ROLES.has(session.role) ||
       !Number.isFinite(session.expiresAt) ||
       session.expiresAt <= Date.now()
     ) {
@@ -52,6 +55,7 @@ export function AuthProvider({ children }) {
       sessionId: crypto.randomUUID(),
       tokenType: result.tokenType,
       username: user.username,
+      role: user.role,
       expiresAt,
     };
     sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession));

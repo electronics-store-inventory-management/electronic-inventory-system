@@ -227,6 +227,12 @@
   font-weight: var(--weight-bold);
 }
 
+.topbar-role {
+  color: #8792a5;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
 .logout-button {
   flex: none;
   padding-inline: var(--space-3);

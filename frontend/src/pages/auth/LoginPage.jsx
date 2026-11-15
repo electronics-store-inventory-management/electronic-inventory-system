@@ -16,9 +16,10 @@ export default function LoginPage() {
 
   if (isAuthenticated) {
     const from = location.state?.from;
-    const destination = typeof from === "string" && /^\/(?![/\\])/.test(from)
-      ? from
-      : "/products";
+    const destination =
+      typeof from === "string" && /^\/(?![/\\])/.test(from)
+        ? from
+        : "/products";
     return <Navigate to={destination} replace />;
   }
 
@@ -68,6 +69,7 @@ export default function LoginPage() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
+              maxLength={128}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               disabled={loading}
@@ -81,6 +83,9 @@ export default function LoginPage() {
               disabled={loading}
             >
               {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
             </button>
           </div>
         </div>
