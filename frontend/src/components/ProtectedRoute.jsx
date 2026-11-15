@@ -3,18 +3,26 @@ import { useAuth } from "../auth/useAuth";
 import AuthSessionStatus from "../pages/auth/AuthSessionStatus";
 import { PageHeading, WorkspaceState } from "../pages/shared/WorkspaceTools";
 
-export default function ProtectedRoute({ children, role, adminOnly = false }) {
+export default function ProtectedRoute({
+  children,
+  role,
+  adminOnly = false,
+}) {
   const { isAuthenticated, session, user } = useAuth();
   const location = useLocation();
 
-  if (session && !isAuthenticated) return <AuthSessionStatus />;
+  if (session && !isAuthenticated) {
+    return <AuthSessionStatus />;
+  }
 
   if (!isAuthenticated) {
     return (
       <Navigate
         to="/login"
         replace
-        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+        state={{
+          from: `${location.pathname}${location.search}${location.hash}`,
+        }}
       />
     );
   }
