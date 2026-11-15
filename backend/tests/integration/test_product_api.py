@@ -438,9 +438,65 @@ def test_register_user_hashes_password_and_login_returns_token():
         assert login_response.json()["token_type"] == "bearer"
         assert login_response.json()["access_token"]
         assert login_response.json()["user"]["role"] == "employee"
+        token_payload = jwt.decode(
+            login_response.json()["access_token"],
+            settings.JWT_SECRET_KEY,
+            algorithms=["HS256"],
+        )
+        assert set(token_payload) == {"sub", "iat", "exp"}
+        assert username not in str(token_payload)
+        assert "employee" not in token_payload.values()
+        assert password not in register_response.text
+        assert password not in login_response.text
+        assert "hashed_password" not in register_response.text
     finally:
         teardown_database()
 
+
+def test_auth_validation_errors_do_not_echo_password():
+    setup_database()
+    try:
+        secret = "Sensitive1!"
+        response = client.post(
+            "/auth/register",
+            json={"username": "valid_user", "password": secret},
+        )
+        assert response.status_code == 422
+        assert secret not in response.text
+    finally:
+        teardown_database()
+
+
+def test_protected_responses_do_not_include_credentials_or_tokens():
+    setup_database()
+    try:
+        response = client.get("/products/", headers=EMPLOYEE_HEADERS)
+        assert response.status_code == 200
+        assert "hashed_password" not in response.text
+        assert "access_token" not in response.text
+        assert "test-only-secret-key" not in response.text
+    finally:
+        teardown_database()
+
+
+def test_employee_can_read_products_but_cannot_access_admin_report():
+    setup_database()
+    try:
+        created = client.post(
+            "/products/",
+            json={"name": "Permitted Read", "category": "Test", "price": 10, "quantity": 4},
+            headers=ADMIN_HEADERS,
+        )
+        assert created.status_code == 201
+
+        product_response = client.get("/products/", headers=EMPLOYEE_HEADERS)
+        assert product_response.status_code == 200
+        assert product_response.json()[0]["name"] == "Permitted Read"
+
+        report_response = client.get("/reports/", headers=EMPLOYEE_HEADERS)
+        assert report_response.status_code == 403
+    finally:
+        teardown_database()
 
 def test_register_rejects_duplicate_username():
     setup_database()

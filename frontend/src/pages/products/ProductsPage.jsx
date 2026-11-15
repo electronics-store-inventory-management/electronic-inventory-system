@@ -1,7 +1,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { productService } from "../../services/productService";
 import { useAuth } from "../../auth/useAuth";
+import Icon from "../../components/Icon";
+import { productService } from "../../services/productService";
+import StockBadge from "../shared/StockBadge";
 import "./ProductsPage.css";
 
 const EMPTY_PRODUCT = { name: "", category: "", price: "", quantity: "0" };
@@ -52,7 +54,7 @@ async function fetchProducts(filters = {}) {
 
 export default function ProductsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canManageProducts = user?.role === "admin";
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -394,293 +396,276 @@ export default function ProductsPage() {
 
   return (
     <div className="products-page">
-      <section className="page-heading">
+      <header className="products-heading">
         <div>
-          <p className="eyebrow">CATALOGUE MANAGEMENT</p>
           <h1>Products</h1>
-          <p className="page-description">
-            Manage your electronic products and keep your catalogue up to date.
-          </p>
+          <p>{canManageProducts
+            ? "Find, add, and update the products in your catalogue."
+            : "Find and view products in your catalogue."}</p>
         </div>
-        {isAdmin && (
+        {canManageProducts && (
           <button
             ref={addButtonRef}
-            className="primary-button"
+            className="ui-button"
             onClick={openAddForm}
             type="button"
           >
-            <span className="button-plus">+</span>
+            <Icon name="add" />
             Add product
           </button>
         )}
-      </section>
+      </header>
 
-      {successMessage && (
-        <div className="success-message" role="status">
-          {successMessage}
-          <button
-            type="button"
-            aria-label="Dismiss success message"
-            onClick={() => setSuccessMessage("")}
-          >
-            ×
-          </button>
+      <div role="status">
+        {successMessage && (
+          <div className="ui-feedback ui-tone-success product-success">
+            <Icon name="check" />
+            <span>{successMessage}</span>
+            <button
+              className="ui-button ui-button--secondary ui-button--icon"
+              type="button"
+              aria-label="Dismiss success message"
+              onClick={() => setSuccessMessage("")}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <dl className="product-stats" aria-label="Catalogue results summary" aria-busy={loading}>
+        <div className="ui-card product-stat product-stat--lead">
+          <dt><span className="product-stat-icon ui-tone-info"><Icon name="products" /></span>Products found</dt>
+          <dd>{loading || error ? "—" : products.length}</dd>
         </div>
-      )}
 
-      <section className="stats-grid">
-        <article className="stat-card">
-          <span className="stat-label">Products found</span>
-          <strong>{loading ? "—" : products.length}</strong>
-          <span className="stat-note">In the current result</span>
-        </article>
+        <div className="ui-card product-stat">
+          <dt><span className="product-stat-icon ui-tone-success"><Icon name="inventory" /></span>Units in results</dt>
+          <dd>{loading || error ? "—" : totalUnits.toLocaleString("en-IN")}</dd>
+        </div>
 
-        <article className="stat-card">
-          <span className="stat-label">Units in results</span>
-          <strong>
-            {loading ? "—" : totalUnits.toLocaleString("en-IN")}
-          </strong>
-          <span className="stat-note">Combined product quantity</span>
-        </article>
-
-        <article className="stat-card">
-          <span className="stat-label">Stock value in results</span>
-          <strong>
-            {loading
+        <div className="ui-card product-stat">
+          <dt><span className="product-stat-icon ui-tone-warning"><Icon name="value" /></span>Stock value in results</dt>
+          <dd>
+            {loading || error
               ? "—"
               : inventoryValue.toLocaleString("en-IN", {
                   style: "currency",
                   currency: "INR",
                   maximumFractionDigits: 2,
                 })}
-          </strong>
-          <span className="stat-note">Price × quantity</span>
-        </article>
-      </section>
+          </dd>
+        </div>
+      </dl>
 
-      <section className="catalogue-card">
+      <section className="ui-card catalogue-card" aria-labelledby="catalogue-title">
         <div className="catalogue-heading">
-          <div>
-            <h2>Product catalogue</h2>
-            <p>Search by product name or category.</p>
-          </div>
-          <span className="catalogue-count">
-            {products.length} {products.length === 1 ? "item" : "items"}
-          </span>
-        </div>
-
-        <form className="search-form" onSubmit={handleSearch}>
-          <label className="search-field">
-            <span>Product name</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="e.g. Wireless headphones"
-            />
-          </label>
-
-          <label className="search-field">
-            <span>Category</span>
-            <input
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              placeholder="e.g. Audio"
-            />
-          </label>
-
-          <button className="search-button" type="submit">
-            Search
-          </button>
-
+          <h2 id="catalogue-title">Product catalogue</h2>
           <button
-            className="reset-button"
+            className="ui-button ui-button--secondary"
             type="button"
-            onClick={clearSearch}
-          >
-            Clear
-          </button>
-        </form>
-
-        {error && (
-          <div className="error-message" role="alert">
-            <strong>Could not load products.</strong>
-            <p>{error}</p>
-            <button onClick={() => loadProducts({ name: search, category })}>
-              Try again
-            </button>
-          </div>
-        )}
-
-        <div className="table-wrapper">
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Unit price</th>
-                <th>Quantity</th>
-                <th>Stock status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="table-message">
-                    Loading products…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan="6" className="table-message">
-                    Check the error above and retry.
-                  </td>
-                </tr>
-              ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-message">
-                    No products found. Try another search.
-                  </td>
-                </tr>
-              ) : (
-                products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <div className="product-identity">
-                        <span className="product-avatar">
-                          {product.name.charAt(0).toUpperCase()}
-                        </span>
-                        <div>
-                          <strong>{product.name}</strong>
-                          <span>PRD-{String(product.id).padStart(4, "0")}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="category-chip">{product.category}</span>
-                    </td>
-                    <td className="price-cell">
-                      {Number(product.price).toLocaleString("en-IN", {
-                        style: "currency",
-                        currency: "INR",
-                      })}
-                    </td>
-                    <td>{product.quantity}</td>
-                    <td>
-                      <span
-                        className={`stock-badge ${
-                          product.quantity === 0
-                            ? "out-of-stock"
-                            : product.quantity <= 5
-                              ? "low-stock"
-                              : "in-stock"
-                        }`}
-                      >
-                        {product.quantity === 0
-                          ? "Out of stock"
-                          : product.quantity <= 5
-                            ? "Low stock"
-                            : "In stock"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="product-row-actions">
-                        <button
-                          className="view-details-button"
-                          type="button"
-                          aria-label={`View details for ${product.name}`}
-                          onClick={(event) =>
-                            openProductDetails(product.id, event.currentTarget)
-                          }
-                        >
-                          View details
-                        </button>
-                        {isAdmin && (
-                          <button
-                            className="edit-product-button"
-                            type="button"
-                            aria-label={`Edit ${product.name}`}
-                            onClick={(event) =>
-                              openEditForm(product, event.currentTarget)
-                            }
-                          >
-                            Edit
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <button
-                            className="delete-product-button"
-                            type="button"
-                            aria-label={`Delete ${product.name}`}
-                            onClick={(event) =>
-                              openDeleteDialog(product, event.currentTarget)
-                            }
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <footer className="catalogue-footer">
-          <span>
-            Showing {loading ? "…" : products.length} products in the current
-            result
-          </span>
-          <button
-            className="refresh-button"
             onClick={() => loadProducts({ name: search, category })}
             disabled={loading}
           >
+            <Icon name="refresh" />
             Refresh list
           </button>
-        </footer>
+        </div>
+
+        <form className="catalogue-filters" role="search" aria-label="Product catalogue" onSubmit={handleSearch}>
+          <label className="catalogue-field">
+            <span>Product name</span>
+            <span className="catalogue-field-control">
+              <Icon name="search" />
+              <input
+                className="ui-field"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name"
+              />
+            </span>
+          </label>
+
+          <label className="catalogue-field">
+            <span>Category</span>
+            <span className="catalogue-field-control">
+              <Icon name="category" />
+              <input
+                className="ui-field"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                placeholder="Filter by category"
+              />
+            </span>
+          </label>
+
+          <div className="catalogue-filter-actions">
+            <button className="ui-button" type="submit">Search</button>
+            <button className="ui-button ui-button--secondary" type="button" onClick={clearSearch}>
+              Clear
+            </button>
+          </div>
+        </form>
+
+        {loading ? (
+          <div className="catalogue-state" role="status">
+            <span className="product-stat-icon ui-tone-info">
+              <span className="ui-spinner" aria-hidden="true" />
+            </span>
+            <strong>Loading products…</strong>
+          </div>
+        ) : error ? (
+          <div className="catalogue-state">
+            <span className="product-stat-icon ui-tone-error"><Icon name="warning" /></span>
+            <div role="alert">
+              <strong>Could not load products</strong>
+              <p>{error}</p>
+            </div>
+            <button className="ui-button ui-button--secondary" type="button" onClick={() => loadProducts({ name: search, category })}>
+              Try again
+            </button>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="catalogue-state" role="status">
+            <span className="product-stat-icon ui-tone-info"><Icon name="products" /></span>
+            <div>
+              <strong>No products found</strong>
+              <p>{canManageProducts
+                ? "Try a different name or category, or add a product to the catalogue."
+                : "Try a different name or category."}</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="catalogue-scroll-hint">
+              Scroll to see all columns and actions.
+            </p>
+            <div className="ui-table-scroll catalogue-table-scroll" role="region" aria-label="Product catalogue table" tabIndex={0}>
+              <table className="ui-table products-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Category</th>
+                    <th scope="col" className="product-number">Unit price</th>
+                    <th scope="col" className="product-number">Quantity</th>
+                    <th scope="col">Stock status</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <tr key={product.id}>
+                      <td>
+                        <div className="product-identity">
+                          <span className="product-avatar" aria-hidden="true"><Icon name="products" /></span>
+                          <div>
+                            <strong>{product.name}</strong>
+                            <span>PRD-{String(product.id).padStart(4, "0")}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="ui-badge product-category">{product.category}</span>
+                      </td>
+                      <td className="product-number">
+                        {Number(product.price).toLocaleString("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                        })}
+                      </td>
+                      <td className="product-number">{product.quantity}</td>
+                      <td>
+                        <StockBadge product={product} className="stock-badge" />
+                      </td>
+                      <td>
+                        <div className="product-row-actions">
+                          <button
+                            className="ui-button ui-button--secondary ui-button--icon"
+                            type="button"
+                            title="View details"
+                            aria-label={`View details for ${product.name}`}
+                            onClick={(event) =>
+                              openProductDetails(product.id, event.currentTarget)
+                            }
+                          >
+                            <Icon name="eye" />
+                          </button>
+                          {canManageProducts && (
+                            <>
+                              <button
+                                className="ui-button ui-button--secondary ui-button--icon"
+                                type="button"
+                                title="Edit product"
+                                aria-label={`Edit ${product.name}`}
+                                onClick={(event) =>
+                                  openEditForm(product, event.currentTarget)
+                                }
+                              >
+                                <Icon name="edit" />
+                              </button>
+                              <button
+                                className="ui-button ui-button--secondary ui-button--icon product-row-delete"
+                                type="button"
+                                title="Delete product"
+                                aria-label={`Delete ${product.name}`}
+                                onClick={(event) =>
+                                  openDeleteDialog(product, event.currentTarget)
+                                }
+                              >
+                                <Icon name="trash" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       {isAddOpen && (
-        <div className="modal-backdrop">
+        <div className="ui-dialog-backdrop">
           <section
             ref={modalRef}
-            className="product-modal"
+            className="ui-dialog product-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-product-title"
             aria-describedby="add-product-description"
           >
             <header className="product-modal-header">
+              <span className="product-stat-icon ui-tone-info"><Icon name="add" /></span>
               <div>
-                <p className="eyebrow">PRODUCT CATALOGUE</p>
                 <h2 id="add-product-title">Add product</h2>
                 <p id="add-product-description">
                   Enter the product details to add it to your inventory.
                 </p>
               </div>
               <button
-                className="modal-close-button"
+                className="ui-button ui-button--secondary ui-button--icon"
                 type="button"
                 aria-label="Close add product form"
                 onClick={closeAddForm}
                 disabled={submitting}
               >
-                ×
+                <Icon name="close" />
               </button>
             </header>
 
             <form className="product-form" onSubmit={handleAddProduct} noValidate>
               {submitError && (
-                <div className="form-error" role="alert">
+                <div className="ui-feedback ui-tone-error" role="alert">
                   {submitError}
                 </div>
               )}
               <label className="product-form-field" htmlFor="product-name">
                 <span>Product name <span aria-hidden="true">*</span></span>
                 <input
+                  className="ui-field"
                   ref={nameInputRef}
                   id="product-name"
                   name="name"
@@ -700,6 +685,7 @@ export default function ProductsPage() {
               <label className="product-form-field" htmlFor="product-category">
                 <span>Category <span aria-hidden="true">*</span></span>
                 <input
+                  className="ui-field"
                   id="product-category"
                   name="category"
                   type="text"
@@ -719,6 +705,7 @@ export default function ProductsPage() {
                 <label className="product-form-field" htmlFor="product-price">
                   <span>Price (INR) <span aria-hidden="true">*</span></span>
                   <input
+                    className="ui-field"
                     id="product-price"
                     name="price"
                     type="text"
@@ -738,6 +725,7 @@ export default function ProductsPage() {
                 <label className="product-form-field" htmlFor="product-quantity">
                   <span>Quantity <span aria-hidden="true">*</span></span>
                   <input
+                    className="ui-field"
                     id="product-quantity"
                     name="quantity"
                     type="text"
@@ -756,14 +744,14 @@ export default function ProductsPage() {
 
               <footer className="product-form-actions">
                 <button
-                  className="reset-button"
+                  className="ui-button ui-button--secondary"
                   type="button"
                   onClick={closeAddForm}
                   disabled={submitting}
                 >
                   Cancel
                 </button>
-                <button className="search-button" type="submit" disabled={submitting}>
+                <button className="ui-button" type="submit" disabled={submitting}>
                   {submitting ? "Adding…" : "Add product"}
                 </button>
               </footer>
@@ -773,43 +761,44 @@ export default function ProductsPage() {
       )}
 
       {isEditOpen && (
-        <div className="modal-backdrop">
+        <div className="ui-dialog-backdrop">
           <section
             ref={modalRef}
-            className="product-modal"
+            className="ui-dialog product-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-product-title"
             aria-describedby="edit-product-description"
           >
             <header className="product-modal-header">
+              <span className="product-stat-icon ui-tone-info"><Icon name="edit" /></span>
               <div>
-                <p className="eyebrow">PRODUCT CATALOGUE</p>
                 <h2 id="edit-product-title">Edit product</h2>
                 <p id="edit-product-description">
                   Update the details for PRD-{String(editingProductId).padStart(4, "0")}.
                 </p>
               </div>
               <button
-                className="modal-close-button"
+                className="ui-button ui-button--secondary ui-button--icon"
                 type="button"
                 aria-label="Close edit product form"
                 onClick={closeEditForm}
                 disabled={updating}
               >
-                ×
+                <Icon name="close" />
               </button>
             </header>
 
             <form className="product-form" onSubmit={handleUpdateProduct} noValidate>
               {editError && (
-                <div className="form-error" role="alert">
+                <div className="ui-feedback ui-tone-error" role="alert">
                   {editError}
                 </div>
               )}
               <label className="product-form-field" htmlFor="edit-product-name">
                 <span>Product name <span aria-hidden="true">*</span></span>
                 <input
+                  className="ui-field"
                   ref={editNameInputRef}
                   id="edit-product-name"
                   name="name"
@@ -829,6 +818,7 @@ export default function ProductsPage() {
               <label className="product-form-field" htmlFor="edit-product-category">
                 <span>Category <span aria-hidden="true">*</span></span>
                 <input
+                  className="ui-field"
                   id="edit-product-category"
                   name="category"
                   type="text"
@@ -848,6 +838,7 @@ export default function ProductsPage() {
                 <label className="product-form-field" htmlFor="edit-product-price">
                   <span>Price (INR) <span aria-hidden="true">*</span></span>
                   <input
+                    className="ui-field"
                     id="edit-product-price"
                     name="price"
                     type="text"
@@ -865,20 +856,20 @@ export default function ProductsPage() {
                 </label>
 
               </div>
-              <p className="form-help">
+              <p className="ui-feedback ui-tone-info form-help">
                 Current stock: {products.find((product) => product.id === editingProductId)?.quantity ?? "—"}. Use an inventory transaction to change stock so the adjustment is recorded.
               </p>
 
               <footer className="product-form-actions">
                 <button
-                  className="reset-button"
+                  className="ui-button ui-button--secondary"
                   type="button"
                   onClick={closeEditForm}
                   disabled={updating}
                 >
                   Cancel
                 </button>
-                <button className="search-button" type="submit" disabled={updating}>
+                <button className="ui-button" type="submit" disabled={updating}>
                   {updating ? "Saving…" : "Save changes"}
                 </button>
               </footer>
@@ -888,29 +879,29 @@ export default function ProductsPage() {
       )}
 
       {isDeleteOpen && productToDelete && (
-        <div className="modal-backdrop">
+        <div className="ui-dialog-backdrop">
           <section
             ref={modalRef}
-            className="product-modal delete-confirmation-modal"
+            className="ui-dialog product-modal delete-confirmation-modal"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-product-title"
             aria-describedby="delete-product-description"
           >
             <header className="product-modal-header">
+              <span className="product-stat-icon ui-tone-error"><Icon name="trash" /></span>
               <div>
-                <p className="eyebrow">INVENTORY ACTION</p>
                 <h2 id="delete-product-title">Remove product?</h2>
               </div>
               <button
                 ref={deleteCloseButtonRef}
-                className="modal-close-button"
+                className="ui-button ui-button--secondary ui-button--icon"
                 type="button"
                 aria-label="Close delete confirmation"
                 onClick={closeDeleteDialog}
                 disabled={deleting}
               >
-                ×
+                <Icon name="close" />
               </button>
             </header>
 
@@ -924,11 +915,11 @@ export default function ProductsPage() {
                   PRD-{String(productToDelete.id).padStart(4, "0")} · {productToDelete.category}
                 </span>
               </div>
-              <p className="delete-warning">
-                This action cannot be undone.
+              <p className="ui-feedback ui-tone-warning delete-warning">
+                <Icon name="warning" /> This action cannot be undone.
               </p>
               {deleteError && (
-                <div className="form-error" role="alert">
+                <div className="ui-feedback ui-tone-error" role="alert">
                   {deleteError}
                 </div>
               )}
@@ -939,7 +930,7 @@ export default function ProductsPage() {
               )}
               <footer className="product-form-actions">
                 <button
-                  className="reset-button"
+                  className="ui-button ui-button--secondary"
                   type="button"
                   onClick={closeDeleteDialog}
                   disabled={deleting}
@@ -947,7 +938,7 @@ export default function ProductsPage() {
                   Cancel
                 </button>
                 <button
-                  className="confirm-delete-button"
+                  className="ui-button ui-button--danger"
                   type="button"
                   onClick={handleDeleteProduct}
                   disabled={deleting}
@@ -961,18 +952,18 @@ export default function ProductsPage() {
       )}
 
       {productDetails.isOpen && (
-        <div className="modal-backdrop">
+        <div className="ui-dialog-backdrop">
           <section
             ref={modalRef}
-            className="product-modal product-details-modal"
+            className="ui-dialog product-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="product-details-title"
             aria-describedby="product-details-description"
           >
             <header className="product-modal-header">
+              <span className="product-stat-icon ui-tone-info"><Icon name="products" /></span>
               <div>
-                <p className="eyebrow">PRODUCT CATALOGUE</p>
                 <h2 id="product-details-title">Product details</h2>
                 <p id="product-details-description">
                   Complete information for the selected product.
@@ -980,24 +971,25 @@ export default function ProductsPage() {
               </div>
               <button
                 ref={detailCloseButtonRef}
-                className="modal-close-button"
+                className="ui-button ui-button--secondary ui-button--icon"
                 type="button"
                 aria-label="Close product details"
                 onClick={closeProductDetails}
               >
-                ×
+                <Icon name="close" />
               </button>
             </header>
 
             {productDetails.loading ? (
               <div className="product-details-state" role="status">
+                <span className="ui-spinner" aria-hidden="true" />
                 Loading product details…
               </div>
             ) : productDetails.error ? (
               <div className="product-details-state product-details-error">
-                <p role="alert">{productDetails.error}</p>
+                <p className="ui-feedback ui-tone-error" role="alert">{productDetails.error}</p>
                 <button
-                  className="search-button"
+                  className="ui-button ui-button--secondary"
                   type="button"
                   onClick={() =>
                     openProductDetails(productDetails.productId)

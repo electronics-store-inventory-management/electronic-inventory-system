@@ -5,18 +5,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import InventoryPage from "./pages/inventory/InventoryPage";
 import ReportsPage from "./pages/reports/ReportsPage";
-
-function PlaceholderPage({ title }) {
-  return (
-    <section>
-      <p className="eyebrow">WORKSPACE</p>
-      <h1>{title}</h1>
-      <p className="page-description">
-        This module will be added by its assigned contributor.
-      </p>
-    </section>
-  );
-}
+import PlaceholderPage from "./pages/shared/PlaceholderPage";
 
 export default function App() {
   return (

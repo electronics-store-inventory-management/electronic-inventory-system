@@ -83,8 +83,6 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     token = jwt.encode(
         {
             "sub": str(user.id),
-            "username": user.username,
-            "role": user.role,
             "iat": now,
             "exp": now + timedelta(minutes=ACCESS_TOKEN_MINUTES),
         },
