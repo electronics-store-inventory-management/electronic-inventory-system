@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -32,6 +33,17 @@ def app_error_handler(request: Request, exc: AppError):
         status_code=exc.status_code,
         content={"detail": exc.detail},
     )
+
+
+@app.exception_handler(RequestValidationError)
+def request_validation_error_handler(request: Request, exc: RequestValidationError):
+    # Do not echo submitted values: validation errors may contain passwords,
+    # tokens, supplier contacts, or inventory data.
+    errors = [
+        {"loc": error.get("loc", ()), "msg": error.get("msg", "Invalid value"), "type": error.get("type", "value_error")}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 app.include_router(product_router)

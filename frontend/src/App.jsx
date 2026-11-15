@@ -7,6 +7,7 @@ import InventoryPage from "./pages/inventory/InventoryPage";
 import SuppliersPage from "./pages/suppliers/SuppliersPage";
 import TransactionsPage from "./pages/transactions/TransactionsPage";
 import ReportsPage from "./pages/reports/ReportsPage";
+import PlaceholderPage from "./pages/shared/PlaceholderPage";
 
 export default function App() {
   return (

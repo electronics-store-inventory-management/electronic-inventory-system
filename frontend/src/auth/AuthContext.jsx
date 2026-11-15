@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { login as requestLogin } from "../services/authService";
-import { AUTH_SESSION_KEY } from "./session";
+import { AUTH_SESSION_KEY, getSessionRole } from "./session";
 import { AuthContext } from "./AuthContextValue";
 
 function readSession() {
@@ -113,7 +113,9 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       session,
-      user: session ? { username: session.username } : null,
+      user: session
+        ? { username: session.username, role: getSessionRole(session.accessToken) }
+        : null,
       isAuthenticated: Boolean(session),
       signIn,
       logout,
