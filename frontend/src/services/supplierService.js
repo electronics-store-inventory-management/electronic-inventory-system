@@ -8,4 +8,9 @@ export const supplierService = {
       method: "POST",
       body: JSON.stringify(supplier),
     }),
+  update: (id, supplier) =>
+    apiRequest(`/suppliers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(supplier),
+    }),
 };
