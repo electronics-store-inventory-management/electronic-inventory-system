@@ -1,20 +1,46 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.core.auth_limits import AuthBodyLimit, AuthRateLimiter
 from app.core.errors import AppError
 from app.database.database import engine, settings
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.auth import router as auth_router
+from app.routers.availability import monitor_once, router as availability_router
 from app.routers.product import router as product_router
 from app.routers.reports import router as reports_router
 from app.routers.suppliers import router as suppliers_router
 from app.routers.transactions import router as transactions_router
+
+
+async def availability_monitor():
+    while True:
+        try:
+            await asyncio.to_thread(monitor_once)
+        except Exception:
+            logging.exception("Availability monitor sample failed")
+        await asyncio.sleep(30)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    monitor_task = asyncio.create_task(availability_monitor())
+    try:
+        yield
+    finally:
+        monitor_task.cancel()
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -24,6 +50,7 @@ app = FastAPI(
     docs_url=None if settings.APP_ENV == "production" else "/docs",
     redoc_url=None if settings.APP_ENV == "production" else "/redoc",
     openapi_url=None if settings.APP_ENV == "production" else "/openapi.json",
+    lifespan=lifespan,
 )
 app.state.auth_limiter = AuthRateLimiter(trusted_proxies=settings.trusted_proxy_networks())
 
@@ -51,8 +78,11 @@ def request_validation_error_handler(request: Request, exc: RequestValidationErr
     # Do not echo submitted values: validation errors may contain passwords,
     # tokens, supplier contacts, or inventory data.
     errors = [
-        {"loc": error.get("loc", ()) if error.get("type") != "extra_forbidden" else ("body",),
-         "msg": error.get("msg", "Invalid value"), "type": error.get("type", "value_error")}
+        {
+            "loc": error.get("loc", ()) if error.get("type") != "extra_forbidden" else ("body",),
+            "msg": error.get("msg", "Invalid value"),
+            "type": error.get("type", "value_error"),
+        }
         for error in exc.errors()
     ]
     return JSONResponse(status_code=422, content={"detail": errors})
@@ -81,6 +111,7 @@ app.include_router(transactions_router)
 app.include_router(reports_router)
 app.include_router(audit_logs_router)
 app.include_router(auth_router)
+app.include_router(availability_router)
 
 
 @app.get("/")
