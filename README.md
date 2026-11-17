@@ -62,18 +62,4 @@ The build reads `VITE_API_BASE_URL` from `.env.local` or the build environment. 
 
 The PostgreSQL TLS regression also requires `ELECTROSTOCK_TEST_CA` and `ELECTROSTOCK_TEST_WRONG_CA` pointing to separate local PEM CA files. Configure the disposable server with a certificate signed by the first CA and valid only for `localhost`. The test checks successful TLS and rejects both a hostname mismatch and the unrelated CA.
 
-## Deployment
 
-Use a static host, a FastAPI web service, and managed PostgreSQL. Keep production and preview databases separate. See the [production deployment guide](docs/deployment/PRODUCTION_DEPLOYMENT_GUIDE.md) and [readiness checklist](docs/deployment/PRODUCTION_READINESS_CHECKLIST.md).
-
-## Screenshots
-
-| Screen | Screenshot |
-| --- | --- |
-| Sign in and signup | Pending a screenshot using sample accounts |
-| Dashboard and inventory | Pending a screenshot using sample products |
-| Administrator Reports | Pending a screenshot using sample data |
-
-## Future work
-
-Complete the Suppliers and Transactions frontend pages. Consider invitation-based signup for private inventory and a verified recovery workflow when the team has an email provider.
