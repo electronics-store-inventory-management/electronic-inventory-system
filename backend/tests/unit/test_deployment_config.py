@@ -63,6 +63,43 @@ def test_signup_requires_production_opt_in(production, monkeypatch):
     assert Settings(**production).REGISTRATION_ENABLED is True
 
 
+def test_frontend_origin_prefers_documented_setting(monkeypatch):
+    monkeypatch.delenv("FRONTEND_ORIGIN", raising=False)
+    monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+    assert Settings(_env_file=None, APP_ENV="development").FRONTEND_ORIGIN == "http://localhost:3000"
+    monkeypatch.setenv("FRONTEND_ORIGIN", "https://inventory.example.com")
+    assert Settings(_env_file=None, APP_ENV="development").FRONTEND_ORIGIN == "https://inventory.example.com"
+
+
+def test_cors_preflight_uses_configured_frontend_origin(production, tmp_path):
+    env = {**os.environ, **{name: value for name, value in production.items() if name != "_env_file"}}
+    ca_bundle = tmp_path / "provider-ca.pem"
+    ca_bundle.touch()
+    env["DATABASE_SSL_ROOT_CERT"] = str(ca_bundle)
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", """
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+headers = {
+    "Access-Control-Request-Method": "POST",
+    "Access-Control-Request-Headers": "content-type",
+}
+origin = "https://inventory.example.com"
+allowed = client.options("/auth/login", headers={**headers, "Origin": origin})
+assert allowed.status_code == 200
+assert allowed.headers["access-control-allow-origin"] == origin
+
+denied = client.options("/auth/login", headers={**headers, "Origin": "https://other.example.com"})
+assert denied.status_code == 400
+assert "access-control-allow-origin" not in denied.headers
+"""],
+        env=env, capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_provider_database_url_enforces_certificate_and_hostname_verification(production, tmp_path):
     ca_bundle = tmp_path / "provider-ca.pem"
     ca_bundle.touch()
