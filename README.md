@@ -69,10 +69,4 @@ See the [software test plan](docs/testing/Software_Test_Plan.md), [backend test 
 
 The PostgreSQL TLS regression also requires `ELECTROSTOCK_TEST_CA` and `ELECTROSTOCK_TEST_WRONG_CA` pointing to separate local PEM CA files. Configure the disposable server with a certificate signed by the first CA and valid only for `localhost`. The test checks successful TLS and rejects both a hostname mismatch and the unrelated CA.
 
-## Deployment
 
-Use a static host, a FastAPI web service, and managed PostgreSQL. Keep production and preview databases separate. See the [production deployment guide](docs/deployment/PRODUCTION_DEPLOYMENT_GUIDE.md) and [readiness checklist](docs/deployment/PRODUCTION_READINESS_CHECKLIST.md).
-
-## Future work
-
-Consider invitation-based signup for private inventory and a verified recovery workflow when the team has an email provider.
