@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, ValidationError, model_validator
+from pydantic import AliasChoices, Field, ValidationError, model_validator
 from pydantic_core import PydanticCustomError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     JWT_SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, ge=1, le=60)
-    FRONTEND_ORIGIN: str = "http://localhost:5173"
+    FRONTEND_ORIGIN: str = Field(
+        default="http://localhost:5173",
+        validation_alias=AliasChoices("FRONTEND_ORIGIN", "FRONTEND_URL"),
+    )
     REGISTRATION_ENABLED: bool | None = None
     AUTH_TRUSTED_PROXY_NETWORKS: str = ""
     LOGIN_REQUESTS_PER_MINUTE: int = Field(default=12, ge=1, le=120)

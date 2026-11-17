@@ -1,12 +1,6 @@
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
-
-FRONTEND_URL = os.getenv(
-    "FRONTEND_URL",
-    "http://localhost:5173"
-)
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -63,7 +57,7 @@ app.state.auth_limiter = AuthRateLimiter(trusted_proxies=settings.trusted_proxy_
 app.add_middleware(AuthBodyLimit)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=[settings.FRONTEND_ORIGIN],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],

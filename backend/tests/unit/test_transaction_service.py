@@ -3,13 +3,13 @@ from sqlalchemy import create_engine, inspect as sqlalchemy_inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.errors import BadRequestError
+from app.core.errors import BadRequestError, ConflictError, NotFoundError
 from app.database.database import Base
 from app.models.audit_log import AuditLog
 from app.models.product import Product
 from app.models.transaction import InventoryTransaction
 from app.schemas.transaction import InventoryTransactionCreate
-from app.services.transaction_service import record_transaction
+from app.services.transaction_service import get_transactions, record_transaction
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -165,18 +165,21 @@ def test_invalid_type_or_reference_rejected(db):
 
 
 # TC-Transaction-01.4
-def test_unknown_product_not_found(db):
-    with pytest.raises(Exception):
+@pytest.mark.parametrize("transaction_type", ["ADD", "DEDUCT", "SET"])
+def test_unknown_product_not_found(db, transaction_type):
+    with pytest.raises(NotFoundError, match="^Product not found$"):
         record_transaction(
             db,
             InventoryTransactionCreate(
                 product_id=9999,
-                transaction_type="ADD",
+                transaction_type=transaction_type,
                 quantity=5,
                 user_id=1,
                 reference="REF",
             ),
         )
+    assert db.query(InventoryTransaction).count() == 0
+    assert db.query(AuditLog).count() == 0
 
 
 # TC-Transaction-01.5
@@ -276,31 +279,58 @@ def test_transaction_update_does_not_expire_unrelated_session_objects(db):
     assert not sqlalchemy_inspect(unrelated).expired
 
 
-def test_idempotency_key_cannot_be_reused_for_different_request(db):
+@pytest.mark.parametrize("change", [
+    {"product_id": 9999},
+    {"transaction_type": "DEDUCT"},
+    {"quantity": 6},
+    {"reference": "SECOND"},
+])
+def test_idempotency_key_cannot_be_reused_for_different_request(db, change):
     product = create_test_product(db)
-    record_transaction(
-        db,
-        InventoryTransactionCreate(
-            product_id=product.id,
-            transaction_type="ADD",
-            quantity=5,
-            user_id=1,
-            reference="FIRST",
-        ),
-        idempotency_key="request-1",
+    request = InventoryTransactionCreate(
+        product_id=product.id,
+        transaction_type="ADD",
+        quantity=5,
+        user_id=1,
+        reference="FIRST",
     )
-    with pytest.raises(Exception, match="different transaction"):
+    record_transaction(db, request, idempotency_key="request-1")
+    with pytest.raises(ConflictError, match="different transaction"):
         record_transaction(
             db,
-            InventoryTransactionCreate(
-                product_id=product.id,
-                transaction_type="ADD",
-                quantity=6,
-                user_id=1,
-                reference="SECOND",
-            ),
+            InventoryTransactionCreate(**(request.model_dump() | change)),
             idempotency_key="request-1",
         )
+    assert product.quantity == 105
+    assert db.query(InventoryTransaction).count() == 1
+    assert db.query(AuditLog).count() == 1
+
+
+def test_blank_idempotency_header_does_not_write_stock_or_history(db):
+    product = create_test_product(db, quantity=4)
+    request = InventoryTransactionCreate(
+        product_id=product.id, transaction_type="ADD", quantity=2,
+        user_id=1, reference="RESTOCK", idempotency_key="body-key",
+    )
+    with pytest.raises(BadRequestError, match="Idempotency key cannot be blank"):
+        record_transaction(db, request, idempotency_key="   ")
+    assert product.quantity == 4
+    assert not get_transactions(db)
+    assert db.query(AuditLog).count() == 0
+
+
+def test_selling_exact_remaining_stock_keeps_limited_history_in_order(db):
+    product = create_test_product(db, quantity=4)
+    other = create_test_product(db, name="Other", quantity=2)
+    for item, units in [(product, 1), (other, 1), (product, 3)]:
+        record_transaction(db, InventoryTransactionCreate(
+            product_id=item.id, transaction_type="DEDUCT", quantity=units,
+            user_id=2, reference="SALE",
+        ))
+    assert product.quantity == 0
+    assert [row.quantity for row in get_transactions(db, product.id)] == [3, 1]
+    assert [row.quantity for row in get_transactions(db, product.id, limit=1)] == [3]
+    assert len(get_transactions(db)) == 3
 
 
 def test_transaction_rolls_back_stock_when_audit_fails(db, monkeypatch):

@@ -1,10 +1,10 @@
 # Software Test Plan (STP)
 
-**Project:** Electronics Store Inventory Management System  
-**Version:** 1.0  
-**Authors:** Group 12  
-**Date:** 02-10-2026  
-**Status:** Draft  
+- **Project** — Electronics Store Inventory Management System
+- **Version** — 1.1
+- **Authors** — Group 12
+- **Date** — 17 November 2026
+- **Status** — Pending team review
 
 ---
 
@@ -42,10 +42,10 @@ The following are outside the scope of this system:
 
 The following documents are used as references for testing:
 
-- Electronics Store Inventory Management System Software Requirements Specification (SRS), Version 1.0
-- Software Architecture and Design Specification for the Electronics Store Inventory Management System
-- Requirements Traceability Matrix (RTM)
-- Project-specific test cases and test data
+- Electronics Store Inventory Management System SRS model, Version 1.0. Reconcile the requirement IDs with the team's final SRS when it is added to the repository.
+- [Software Architecture and Design Specification](../architecture/Software_Architecture_and_Design.md)
+- Requirements traceability and test cases in [Section 13](#13-test-case-management--traceability)
+- [Unit Test and Coverage Report](reports/Unit_Test_Report.md) and [System Test Report](reports/System_Test_Report.md)
 - OWASP security guidance, where applicable to web application security testing
 
 ### 1.4 Definitions and Abbreviations
@@ -210,8 +210,8 @@ Testing shall verify that important operations are recorded with the responsible
 | ES-NF-001 | Inventory search response time | TC-Perf-01 |
 | ES-NF-002 | System availability | TC-Reliability-01 |
 | ES-NF-003 | Protection against unauthorized access | TC-Sec-01 |
-| ES-NF-004 | User-friendly interface | TC-Usability-01 |
-| ES-NF-005 | Data integrity and consistency | TC-Integrity-01 |
+| ES-NF-004 | User-friendly interface | TC-UX-01 |
+| ES-NF-005 | Data integrity and consistency | TC-Data-01 |
 
 Testing shall verify the measurable non-functional requirements defined in the SRS, including search performance, system availability, security, usability, and data integrity.
 
@@ -257,175 +257,7 @@ The above exclusions are based on the defined scope and limitations of the Softw
 
 The testing strategy for the Electronics Store Inventory Management System follows a combination of testing levels and testing types to verify functional correctness, integration between modules, end-to-end system behavior, and compliance with non-functional requirements.
 
-### 5.1 Testing Levels
-
-#### 5.1.1 Unit Testing
-
-Unit testing will verify individual functions, methods, and components in isolation.
-
-The following areas will be covered:
-
-- Authentication validation functions
-- Product creation and validation
-- Product update and deletion operations
-- Product search functionality
-- Product detail retrieval
-- Stock quantity calculations
-- Incoming stock processing
-- Stock deduction after sales
-- Low-stock identification
-- Negative stock validation
-- Supplier data validation
-- Transaction recording
-- Report generation logic
-- Audit record creation
-
-Unit tests will primarily be executed using **Pytest** for backend components.
-
-#### 5.1.2 Integration Testing
-
-Integration testing will verify the interaction between different system components.
-
-The following interactions will be tested:
-
-- Frontend and backend API communication
-- Backend services and database
-- Authentication and role-based access control
-- Product Management and Inventory Management
-- Sales transactions and stock deduction
-- Supplier information and product data
-- Inventory transactions and audit history
-- Reporting and inventory data
-
-API integration testing will verify request validation, response handling, database updates, and error handling.
-
-#### 5.1.3 System Testing
-
-System testing will validate the complete Electronics Store Inventory Management System as an integrated application.
-
-End-to-end scenarios will include:
-
-- User login and access control
-- Adding and managing products
-- Searching and viewing products
-- Updating and deleting products
-- Receiving new stock
-- Recording a sale and deducting stock
-- Identifying low-stock products
-- Preventing negative stock
-- Managing suppliers
-- Recording inventory transactions
-- Generating inventory reports
-- Maintaining audit history
-
-System testing will verify that complete workflows operate according to the requirements specified in the SRS.
-
-#### 5.1.4 Acceptance Testing
-
-Acceptance testing will verify whether the completed system satisfies the acceptance criteria defined in the SRS and is suitable for the intended store personnel.
-
-Acceptance testing will verify that:
-
-- All high-priority functional requirements are implemented and verified.
-- Critical security requirements are successfully tested.
-- No critical non-functional requirement failures remain.
-- Inventory quantities remain accurate after inventory transactions.
-- Authorized users can perform their permitted operations.
-- Unauthorized users are prevented from accessing protected functions.
-- All defined requirements are mapped to corresponding test cases in the RTM.
-
-Acceptance testing will be performed using representative store inventory scenarios.
-
-### 5.2 Testing Types
-
-#### 5.2.1 Functional Testing
-
-Functional testing will verify that the system performs the functions specified in the SRS.
-
-Testing will cover:
-
-- Authentication
-- Role-based access control
-- Product management
-- Inventory management
-- Supplier management
-- Inventory transactions
-- Inventory reporting
-- Audit history
-
-#### 5.2.2 Regression Testing
-
-Regression testing will be performed after changes, bug fixes, or new functionality are introduced.
-
-Regression testing will verify that:
-
-- Existing product operations continue to work after changes.
-- Inventory calculations remain correct.
-- Authentication and access control are not affected by modifications.
-- Existing APIs continue to behave correctly.
-- Previously resolved defects do not reappear.
-- Related modules continue to operate correctly after changes.
-
-#### 5.2.3 Performance Testing
-
-Performance testing will evaluate whether the system satisfies the response-time requirement specified in the SRS.
-
-The primary performance requirement is:
-
-- At least 90% of inventory search requests shall return results within 3 seconds under normal operating conditions.
-
-Performance testing will focus particularly on:
-
-- Product search operations
-- Database queries
-- API response times
-- Inventory report generation
-
-#### 5.2.4 Usability Testing
-
-Usability testing will evaluate whether store personnel can use the system effectively and understand the available operations.
-
-Testing will focus on:
-
-- Clarity of navigation
-- Readability of product and inventory information
-- Ease of performing product operations
-- Ease of searching for products
-- Clarity of validation and error messages
-- Ease of viewing inventory and reports
-- Consistency of the user interface
-
-### 5.3 Entry Criteria
-
-Testing may begin when the following conditions are satisfied:
-
-- A stable build of the system is available.
-- Required application components are implemented sufficiently for the planned test level.
-- The test environment is configured and accessible.
-- Required test data is available.
-- Database schema and required test data are available.
-- Test cases have been prepared and reviewed.
-- Required dependencies and development tools are available.
-- Major blocking defects preventing test execution have been resolved.
-
-### 5.4 Exit Criteria
-
-Testing for a planned test cycle may be considered complete when:
-
-- 100% of planned test cases for the test cycle have been executed.
-- All high-priority functional requirements have been tested.
-- All critical security test cases have been executed successfully.
-- No unresolved critical defects remain.
-- Required regression testing has been completed.
-- Applicable non-functional requirements have been evaluated.
-- Inventory quantities and transaction results are verified as accurate.
-- Authorized and unauthorized access behavior has been verified.
-- Requirements Traceability Matrix coverage has been completed for the planned requirements.
-- Test results and significant defects have been documented.
-
----
-
-### 5.5 Security Validation
+### 5.1 Security Validation
 
 Security testing will verify that the Electronics Store Inventory Management System protects user accounts, inventory information, and system functionality from unauthorized access and invalid operations.
 
@@ -472,6 +304,172 @@ The following security validations will be performed:
 
 Security testing will include functional security tests, authorization tests, input validation tests, and verification of secure handling of credentials and audit information.
 
+### 5.2 Testing Levels
+
+#### 5.2.1 Unit Testing
+
+Unit testing will verify individual functions, methods, and components in isolation.
+
+The following areas will be covered:
+
+- Authentication validation functions
+- Product creation and validation
+- Product update and deletion operations
+- Product search functionality
+- Product detail retrieval
+- Stock quantity calculations
+- Incoming stock processing
+- Stock deduction after sales
+- Low-stock identification
+- Negative stock validation
+- Supplier data validation
+- Transaction recording
+- Report generation logic
+- Audit record creation
+
+Unit tests will primarily be executed using **Pytest** for backend components.
+
+#### 5.2.2 Integration Testing
+
+Integration testing will verify the interaction between different system components.
+
+The following interactions will be tested:
+
+- Frontend and backend API communication
+- Backend services and database
+- Authentication and role-based access control
+- Product Management and Inventory Management
+- Sales transactions and stock deduction
+- Supplier information and product data
+- Inventory transactions and audit history
+- Reporting and inventory data
+
+API integration testing will verify request validation, response handling, database updates, and error handling.
+
+#### 5.2.3 System Testing
+
+System testing will validate the complete Electronics Store Inventory Management System as an integrated application.
+
+End-to-end scenarios will include:
+
+- User login and access control
+- Adding and managing products
+- Searching and viewing products
+- Updating and deleting products
+- Receiving new stock
+- Recording a sale and deducting stock
+- Identifying low-stock products
+- Preventing negative stock
+- Managing suppliers
+- Recording inventory transactions
+- Generating inventory reports
+- Maintaining audit history
+
+System testing will verify that complete workflows operate according to the requirements specified in the SRS.
+
+#### 5.2.4 Acceptance Testing
+
+Acceptance testing will verify whether the completed system satisfies the acceptance criteria defined in the SRS and is suitable for the intended store personnel.
+
+Acceptance testing will verify that:
+
+- All high-priority functional requirements are implemented and verified.
+- Critical security requirements are successfully tested.
+- No critical non-functional requirement failures remain.
+- Inventory quantities remain accurate after inventory transactions.
+- Authorized users can perform their permitted operations.
+- Unauthorized users are prevented from accessing protected functions.
+- All defined requirements are mapped to corresponding test cases in the RTM.
+
+Acceptance testing will be performed using representative store inventory scenarios.
+
+### 5.3 Testing Types
+
+#### 5.3.1 Functional Testing
+
+Functional testing will verify that the system performs the functions specified in the SRS.
+
+Testing will cover:
+
+- Authentication
+- Role-based access control
+- Product management
+- Inventory management
+- Supplier management
+- Inventory transactions
+- Inventory reporting
+- Audit history
+
+#### 5.3.2 Regression Testing
+
+Regression testing will be performed after changes, bug fixes, or new functionality are introduced.
+
+Regression testing will verify that:
+
+- Existing product operations continue to work after changes.
+- Inventory calculations remain correct.
+- Authentication and access control are not affected by modifications.
+- Existing APIs continue to behave correctly.
+- Previously resolved defects do not reappear.
+- Related modules continue to operate correctly after changes.
+
+#### 5.3.3 Performance Testing
+
+Performance testing will evaluate whether the system satisfies the response-time requirement specified in the SRS.
+
+The primary performance requirement is:
+
+- At least 90% of inventory search requests shall return results within 3 seconds under normal operating conditions.
+
+Performance testing will focus particularly on:
+
+- Product search operations
+- Database queries
+- API response times
+- Inventory report generation
+
+#### 5.3.4 Usability Testing
+
+Usability testing will evaluate whether store personnel can use the system effectively and understand the available operations.
+
+Testing will focus on:
+
+- Clarity of navigation
+- Readability of product and inventory information
+- Ease of performing product operations
+- Ease of searching for products
+- Clarity of validation and error messages
+- Ease of viewing inventory and reports
+- Consistency of the user interface
+
+### 5.4 Entry Criteria
+
+Testing may begin when the following conditions are satisfied:
+
+- A stable build of the system is available.
+- Required application components are implemented sufficiently for the planned test level.
+- The test environment is configured and accessible.
+- Required test data is available.
+- Database schema and required test data are available.
+- Test cases have been prepared and reviewed.
+- Required dependencies and development tools are available.
+- Major blocking defects preventing test execution have been resolved.
+
+### 5.5 Exit Criteria
+
+Testing for a planned test cycle may be considered complete when:
+
+- 100% of planned test cases for the test cycle have been executed.
+- All high-priority functional requirements have been tested.
+- All critical security test cases have been executed successfully.
+- No unresolved critical defects remain.
+- Required regression testing has been completed.
+- Applicable non-functional requirements have been evaluated.
+- Inventory quantities and transaction results are verified as accurate.
+- Authorized and unauthorized access behavior has been verified.
+- Requirements Traceability Matrix coverage has been completed for the planned requirements.
+- Test results and significant defects have been documented.
+
 ---
 
 ## 6. Test Environment
@@ -498,8 +496,8 @@ The following software components will be used:
 | Database | PostgreSQL |
 | ORM / Data Access | SQLAlchemy |
 | API Format | REST with JSON |
-| Frontend Testing | Vitest and React Testing Library |
-| Backend Testing | Pytest and HTTPX |
+| Frontend Testing | Node.js test runner, React Testing Library, and jsdom |
+| Backend Testing | Pytest, HTTPX, and pytest-cov |
 | Version Control | Git and GitHub |
 | CI/CD | GitHub Actions |
 | Web Browser | Modern web browser such as Google Chrome |
@@ -526,7 +524,8 @@ The following tools will be used during testing:
 
 - **Pytest** — Backend unit testing.
 - **HTTPX** — API and backend integration testing.
-- **Vitest** — Frontend unit and component testing.
+- **Node.js test runner** — Runs the frontend tests through the `npm test` script.
+- **pytest-cov** — Measures backend line and branch coverage. Export the unit-only and combined unit/integration runs separately.
 - **React Testing Library** — Testing React user interface components.
 - **Postman** — Manual API request and response validation.
 - **GitHub Actions** — Automated test execution as part of the CI/CD workflow.
@@ -589,6 +588,8 @@ Testing activities may be rescheduled when implementation or defect resolution t
 ---
 
 ## 8. Test Deliverables
+
+The repository includes the [Unit Test Report](reports/Unit_Test_Report.md), [System Test Report](reports/System_Test_Report.md), [unit-only coverage](reports/backend-unit-coverage.xml), and [combined unit and integration coverage](reports/backend-unit-integration-coverage.xml). Each report identifies its test scope and configuration.
 
 The following testing artefacts and outputs will be produced during the testing process:
 
@@ -788,41 +789,67 @@ Test cases will use module-specific identifiers to make them easy to identify an
 | Audit | TC-Audit-01 |
 | Performance | TC-Perf-01 |
 | Reliability | TC-Reliability-01 |
-| Security | TC-Sec-01 |
-| Usability | TC-Usability-01 |
-| Data Integrity | TC-Integrity-01 |
+| Security | TC-Sec-01 to TC-Sec-05 |
+| Usability | TC-UX-01 |
+| Data Integrity | TC-Data-01 |
 
 ### 13.2 Requirements Traceability
 
-The following mapping provides traceability between the SRS requirements and their corresponding test cases.
+The table maps the SRS model requirement IDs to planned cases and observed evidence. ST identifiers refer to the [System Test Report](reports/System_Test_Report.md).
 
-| Requirement ID | Requirement / Feature | Test Case(s) |
-|---|---|---|
-| ES-F-001 | User login using valid credentials | TC-Auth-01 |
-| ES-F-002 | Reject invalid login credentials | TC-Auth-02 |
-| ES-F-003 | Role-based access control | TC-Auth-03 |
-| ES-F-004 | Add product | TC-Product-01 |
-| ES-F-005 | Update product | TC-Product-02 |
-| ES-F-006 | Delete product | TC-Product-03 |
-| ES-F-007 | Search product | TC-Product-04 |
-| ES-F-008 | View product details | TC-Product-05 |
-| ES-F-009 | Maintain stock quantity | TC-Inventory-01 |
-| ES-F-010 | Record incoming stock | TC-Inventory-02 |
-| ES-F-011 | Deduct stock after sale | TC-Inventory-03 |
-| ES-F-012 | Identify low-stock products | TC-Inventory-04 |
-| ES-F-013 | Prevent negative stock | TC-Inventory-05 |
-| ES-F-014 | Manage supplier information | TC-Supplier-01 |
-| ES-F-015 | View supplier details | TC-Supplier-02 |
-| ES-F-016 | Record inventory transactions | TC-Transaction-01 |
-| ES-F-017 | Generate inventory reports | TC-Report-01 |
-| ES-F-018 | Maintain audit history | TC-Audit-01 |
-| ES-NF-001 | Inventory search response time | TC-Perf-01 |
-| ES-NF-002 | System availability | TC-Reliability-01 |
-| ES-NF-003 | Security and unauthorized access protection | TC-Sec-01 |
-| ES-NF-004 | User-friendly interface | TC-Usability-01 |
-| ES-NF-005 | Data integrity and consistency | TC-Integrity-01 |
+| Requirement ID | Requirement / Feature | Planned test case | Verification evidence |
+|---|---|---|---|
+| ES-F-001 | User login using valid credentials | TC-Auth-01 | ST-01, ST-10 |
+| ES-F-002 | Reject invalid login credentials | TC-Auth-02 | ST-01 |
+| ES-F-003 | Role-based access control | TC-Auth-03 | ST-02, ST-14 |
+| ES-F-004 | Add product | TC-Product-01 | ST-03 |
+| ES-F-005 | Update product | TC-Product-02 | ST-03 |
+| ES-F-006 | Delete product | TC-Product-03 | ST-03 |
+| ES-F-007 | Search product | TC-Product-04 | ST-03, ST-14 |
+| ES-F-008 | View product details | TC-Product-05 | ST-03 |
+| ES-F-009 | Maintain stock quantity | TC-Inventory-01 | ST-04, ST-13 |
+| ES-F-010 | Record incoming stock | TC-Inventory-02 | ST-04, ST-13. Admin receipt passed. Employee receipt is a requirements discrepancy. |
+| ES-F-011 | Deduct stock after sale | TC-Inventory-03 | ST-04 |
+| ES-F-012 | Identify low-stock products | TC-Inventory-04 | ST-07, ST-12 |
+| ES-F-013 | Prevent negative stock | TC-Inventory-05 | ST-05 |
+| ES-F-014 | Manage supplier information | TC-Supplier-01 | ST-06 |
+| ES-F-015 | View supplier details | TC-Supplier-02 | ST-06, ST-12 |
+| ES-F-016 | Record inventory transactions | TC-Transaction-01 | ST-04, ST-12, ST-13 |
+| ES-F-017 | Generate inventory reports | TC-Report-01 | ST-07, ST-12 |
+| ES-F-018 | Maintain audit history | TC-Audit-01 | ST-08 |
+| ES-NF-001 | Inventory search response time | TC-Perf-01 | ST-09. Local sample only. |
+| ES-NF-002 | System availability | TC-Reliability-01 | ST-11. Not run over store operating hours. |
+| ES-NF-003 | Security and unauthorized access protection | TC-Sec-01 | ST-01, ST-02, ST-14 and the automated security cases below. |
+| ES-NF-004 | User-friendly interface | TC-UX-01 | Formal usability evaluation pending. Browser workflows passed in ST-10 and ST-12 to ST-14. |
+| ES-NF-005 | Data integrity and consistency | TC-Data-01 | ST-05 and transaction rollback regressions. |
+| ES-SR-001 | Require authentication for protected operations | TC-Sec-01 | ST-01 and backend authentication tests |
+| ES-SR-002 | Restrict actions by current role | TC-Sec-02 | ST-02, ST-14, and the role-change regression |
+| ES-SR-003 | Store passwords securely | TC-Sec-03 | Backend signup integration test verifies a password hash |
+| ES-SR-004 | Validate input | TC-Sec-04 | Input validation unit tests and invalid-signup integration tests |
+| ES-SR-005 | Audit inventory changes | TC-Sec-05 | ST-08 and audit and transaction regressions |
 
-### 13.3 Traceability Process
+### 13.3 Detailed Test Cases
+
+Use a disposable database, test administrator and employee accounts, and sample inventory. The linked execution records contain actual results and status.
+
+| Planned case | Steps and test data | Expected result | Execution reference |
+|---|---|---|---|
+| TC-Auth-01, TC-Auth-02 | Sign in with the test administrator's valid credentials. Repeat with an incorrect password. | The dashboard opens for valid credentials. The invalid login returns HTTP 401. | ST-01, ST-10 |
+| TC-Auth-03, TC-Sec-02 | Sign in as an employee. Open Reports and attempt to create a product. | The browser displays an administrator-access message. The API denies both restricted operations. | ST-02, ST-14 |
+| TC-Product-01 to TC-Product-05 | Create a USB-C dock, change its price to 125, then search and view the item. Create and delete a second item with no transactions. | Search finds the updated item. The deleted item returns HTTP 404. | ST-03, ST-14 |
+| TC-Inventory-01 to TC-Inventory-03, TC-Transaction-01 | With stock at zero, try receiving five units as employee, then receive five as admin and sell two as employee. | Under the current role rule, employee receipt returns HTTP 403. The receipt and sale leave three units and two transaction records. | ST-04. Confirm the final ES-F-010 role rule. |
+| TC-Inventory-04, TC-Report-01 | Open Reports with three units on hand and a minimum of four. | The dock appears in the low-stock report. | ST-07, ST-12 |
+| TC-Inventory-05, TC-Data-01 | Attempt to sell four units when three are available. Read stock and history again. | The request returns HTTP 400. The balance and transaction history are unchanged. | ST-05 |
+| TC-Supplier-01, TC-Supplier-02 | Create a sample supplier as admin, update its phone number, then view it as employee. | The employee can see the supplier and its updated phone number. | ST-06, ST-12 |
+| TC-Audit-01, TC-Sec-05 | Retrieve audit history as admin after test stock actions by both roles. Try the same request as employee. | Admin sees entries with the actor and timestamp. Employee access returns HTTP 403. | ST-08 |
+| TC-Perf-01 | Time 30 product searches on the local sample catalogue. | At least 27 return the expected result within three seconds. | ST-09. Verify representative performance separately. |
+| TC-Reliability-01 | Measure availability across representative store operating hours, excluding scheduled maintenance. | Availability is at least 99% for the operating window. | ST-11. Pending an operating window. |
+| TC-Sec-01 | Request the product catalogue while signed out. | The API returns HTTP 401. | ST-01 |
+| TC-Sec-03 | Register a test employee, inspect the test record, and confirm the stored credential verifies with the password-hashing library. | The stored credential is a verifiable hash and differs from the supplied plaintext. | Backend signup integration suite |
+| TC-Sec-04 | Submit invalid values such as a negative product quantity or an invalid signup username. | Validation rejects the inputs and the response omits submitted credential values. | Backend input validation and signup tests |
+| TC-UX-01 | Ask a representative employee to find a product and complete a sale, recording completion and obstacles. | The employee completes both tasks. The tester records any obstacles for review. | Formal evaluation pending |
+
+### 13.4 Traceability Process
 
 The RTM shall be maintained throughout the testing lifecycle.
 
@@ -859,6 +886,7 @@ The following metrics will be tracked:
 | Defect Resolution Rate | Percentage of identified defects that have been resolved and verified. |
 | Defect Aging | Time taken to resolve open defects. |
 | Requirement Coverage | Percentage of SRS requirements mapped to and covered by test cases. |
+| Code Coverage | Line and branch coverage measured for the backend. Report the unit-only and combined scopes separately. |
 | Regression Test Results | Number and outcome of regression tests executed after system changes or defect fixes. |
 | Performance Results | Percentage of inventory search requests satisfying the specified response-time requirement. |
 | Security Test Results | Number and outcome of planned security validation tests. |
@@ -906,10 +934,10 @@ The Software Test Plan shall be reviewed by the project team before final submis
 
 | Role | Name | Signature / Date |
 |---|---|---|
-| Scrum Master / Project Coordinator | <Name> | <Signature / Date> |
-| Development Representative | <Name> | <Signature / Date> |
-| Test Coordinator | <Name> | <Signature / Date> |
-| Team Representative | <Name> | <Signature / Date> |
+| Scrum Master / Project Coordinator | Pending team review | Pending |
+| Development Representative | Pending team review | Pending |
+| Test Coordinator | Pending team review | Pending |
+| Team Representative | Pending team review | Pending |
 
 ### 15.1 Approval Criteria
 

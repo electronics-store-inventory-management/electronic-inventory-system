@@ -1,23 +1,24 @@
 # Software Architecture and Design Specification
 
-**Project:** Electronics Store Inventory Management System  
-**Version:** 1.0  
-**Authors:** Group 12  
-**Date:** 02-10-2026  
-**Status:** Draft
+- **Project** — Electronics Store Inventory Management System
+- **Version** — 1.1
+- **Authors** — Group 12
+- **Date** — 17 November 2026
+- **Status** — Pending team review
 
 ## Revision History
 
 | Version | Date | Author | Change Summary |
 |---|---|---|---|
 | 1.0 | 02-10-2026 | Group 12 | Initial architecture and design specification |
+| 1.1 | 17 November 2026 | Documentation revision | Aligned interfaces, sequence diagrams, role permissions, and traceability with the tested build |
 
 ## Approvals
 
 | Role | Name | Signature/Date |
 |---|---|---|
-| Project Team | Group 12 | |
-| Faculty / Instructor | | |
+| Project Team | Group 12 | Pending |
+| Faculty / Instructor | Pending | Pending |
 
 # 1. Introduction
 
@@ -192,7 +193,54 @@ The major functional components are:
 - Reporting
 - Audit Management
 
-The component diagram illustrates the dependencies and communication between these components.
+```mermaid
+flowchart TB
+
+    U["Store Users<br/>Administrator / Manager / Employee"]
+
+    UI["React + Vite UI<br/>Presentation Layer"]
+
+    API["FastAPI REST API<br/>Application Layer"]
+
+    AUTH["Authentication &<br/>Access Control"]
+
+    PROD["Product Management"]
+
+    INV["Inventory Management"]
+
+    SUP["Supplier Management"]
+
+    TRANS["Transaction Management"]
+
+    REP["Reporting"]
+
+    AUDIT["Audit Management"]
+
+    ORM["SQLAlchemy ORM<br/>Data Access Layer"]
+
+    DB[("PostgreSQL Database")]
+
+    U --> UI
+
+    UI -->|"REST / JSON"| API
+
+    API --> AUTH
+    API --> PROD
+    API --> INV
+    API --> SUP
+    API --> TRANS
+    API --> REP
+    API --> AUDIT
+
+    AUTH --> ORM
+    PROD --> ORM
+    INV --> ORM
+    SUP --> ORM
+    TRANS --> ORM
+    REP --> ORM
+    AUDIT --> ORM
+    ORM --> DB
+```
 
 ## 3.4 Component Descriptions
 
@@ -256,7 +304,7 @@ This separation supports maintainability, modular development, testing, and easi
 | CI/CD | GitHub Actions | Automated build and test execution |
 | API Testing | Postman | API validation |
 | Backend Testing | Pytest | Unit and integration testing |
-| Frontend Testing | Vitest + React Testing Library | UI/component testing |
+| Frontend Testing | Node.js test runner, React Testing Library, and jsdom | Frontend unit and component testing |
 
 ## 3.7 Risks & Mitigations
 
@@ -274,7 +322,7 @@ This separation supports maintainability, modular development, testing, and easi
 
 ## 3.8 Traceability to Requirements
 
-The architecture components are mapped to the functional and non-functional requirements defined in the SRS.
+The architecture components are mapped to the functional, non-functional, and security requirements identified in the SRS model. Reconcile this table with the team's final SRS when it is added to the repository.
 
 | Requirement ID | Requirement | Architecture Component |
 |---|---|---|
@@ -287,7 +335,7 @@ The architecture components are mapped to the functional and non-functional requ
 | ES-F-007 | Search product | Product Management |
 | ES-F-008 | View product details | Product Management |
 | ES-F-009 | Maintain stock quantity | Inventory Management |
-| ES-F-010 | Record incoming stock | Inventory Management |
+| ES-F-010 | Record incoming stock | Transaction Management and Access Control. The current API restricts receipt to administrators. |
 | ES-F-011 | Deduct stock after sale | Inventory Management |
 | ES-F-012 | Identify low-stock products | Inventory Management |
 | ES-F-013 | Prevent negative stock | Inventory Management |
@@ -301,8 +349,13 @@ The architecture components are mapped to the functional and non-functional requ
 | ES-NF-003 | Protect credentials and sensitive information | Authentication & Access Control / Security |
 | ES-NF-004 | User-friendly interface | React + Vite UI |
 | ES-NF-005 | Maintain data integrity | Business Logic / SQLAlchemy / PostgreSQL |
+| ES-SR-001 | Require authentication on protected operations | Authentication & Access Control |
+| ES-SR-002 | Restrict operations by role | Current-account lookup and API role checks |
+| ES-SR-003 | Store passwords securely | Password hashing and account storage |
+| ES-SR-004 | Validate inputs | Pydantic schemas, service validation, and database constraints |
+| ES-SR-005 | Audit inventory operations | Product, supplier, and stock transaction services and Audit Management |
 
-> **Note:** The architecture component mappings above are design mappings. The SRS defines the requirements; the architecture assigns those requirements to implementation components.
+The [Test Plan traceability matrix](../testing/Software_Test_Plan.md#132-requirements-traceability) links these requirements to cases and evidence.
 
 ---
 
@@ -331,7 +384,17 @@ The primary operational roles are:
 - Store Administrator / Manager
 - Store Employee
 
-Access permissions will be checked at the backend rather than relying only on frontend controls.
+The API looks up the current account role for each protected request. The frontend uses that role to control navigation and show available actions.
+
+| Operation | Employee | Administrator |
+|---|---|---|
+| View catalogue, inventory, suppliers, and transaction history | Allowed | Allowed |
+| Record a sale (DEDUCT) | Allowed | Allowed |
+| Record stock receipt or correction (ADD or SET) | Denied | Allowed |
+| Create, update, or delete products and manage suppliers | Denied | Allowed |
+| View inventory reports and the audit log API | Denied | Allowed |
+
+Public signup creates employee accounts. Administrators are provisioned with the backend CLI. Passwords are stored as salted hashes. The API issues expiring bearer tokens and checks the configured frontend origin through CORS.
 
 ### Input Validation
 
@@ -382,60 +445,11 @@ The system follows a layered design in which each layer has a defined responsibi
 - **Data Access Layer:** SQLAlchemy provides database access.
 - **Data Layer:** PostgreSQL stores persistent system data.
 
-The detailed component architecture is presented in Section 4.2.
+The component diagram is in Section 3.3. The interfaces between layers are described below.
 
-## 4.2 UML Component Diagram
+## 4.2 Component Interfaces
 
-The following diagram represents the proposed component architecture of the Electronics Store Inventory Management System.
-
-```mermaid
-flowchart TB
-
-    U["Store Users<br/>Administrator / Manager / Employee"]
-
-    UI["React + Vite UI<br/>Presentation Layer"]
-
-    API["FastAPI REST API<br/>Application Layer"]
-
-    AUTH["Authentication &<br/>Access Control"]
-
-    PROD["Product Management"]
-
-    INV["Inventory Management"]
-
-    SUP["Supplier Management"]
-
-    TRANS["Transaction Management"]
-
-    REP["Reporting"]
-
-    AUDIT["Audit Management"]
-
-    ORM["SQLAlchemy ORM<br/>Data Access Layer"]
-
-    DB[("PostgreSQL Database")]
-
-    U --> UI
-
-    UI -->|"REST / JSON"| API
-
-    API --> AUTH
-    API --> PROD
-    API --> INV
-    API --> SUP
-    API --> TRANS
-    API --> REP
-    API --> AUDIT
-
-    AUTH --> ORM
-    PROD --> ORM
-    INV --> ORM
-    SUP --> ORM
-    TRANS --> ORM
-    REP --> ORM
-    AUDIT --> ORM
-    ORM --> DB
-```
+The browser sends JSON requests to FastAPI. Routers handle input schemas and authorization, then call services with a SQLAlchemy session. Services apply stock and audit rules before committing to PostgreSQL. See the [component diagram](#33-uml-component-diagram) for the module dependencies.
 
 ## 4.3 UML Sequence Diagrams
 
@@ -443,208 +457,130 @@ The following sequence diagrams illustrate important interactions between users,
 
 ### 4.3.1 Add Product
 
-The following sequence describes how a Store Administrator adds a new product to the system.
+An administrator enters product details. The API checks the role, validates the request, and stores the product and audit entry together.
 
 ```mermaid
 sequenceDiagram
     actor Admin as Store Administrator
     participant UI as React UI
-    participant API as FastAPI API
-    participant Auth as Authentication/RBAC
-    participant Product as Product Management
+    participant API as FastAPI
+    participant Auth as Authentication and Access Control
+    participant Product as Product Service
     participant DB as PostgreSQL
 
     Admin->>UI: Enter product details
-    UI->>API: POST /products
-    API->>Auth: Verify authentication and role
-    Auth-->>API: Authorization successful
-    API->>Product: Validate product data
-    Product->>DB: Check product information
-    DB-->>Product: Validation result
-
-    alt Valid product
-        Product->>DB: Insert product
-        DB-->>Product: Product created
-        Product-->>API: Creation successful
-        API-->>UI: 201 Created
-        UI-->>Admin: Display success message
-    else Invalid product
-        Product-->>API: Validation error
-        API-->>UI: 400 Bad Request
-        UI-->>Admin: Display validation error
+    UI->>API: POST /products/
+    API->>Auth: Verify bearer token and current admin role
+    alt Missing authentication or insufficient permission
+        API-->>UI: 401 Unauthorized or 403 Forbidden
+    else Authorized
+        alt Request fails schema validation
+            API-->>UI: 422 Unprocessable Entity
+        else Valid request
+            API->>Product: Create product with authenticated actor
+            Product->>DB: Save product and audit event in one transaction
+            DB-->>Product: Commit succeeds
+            Product-->>API: Product record
+            API-->>UI: 201 Created with product record
+        end
     end
 ```
 
 ### 4.3.2 Record Sale and Deduct Stock
 
-The following sequence describes how a Store Employee records a sale and the corresponding stock quantity is deducted.
+A signed-in employee or administrator submits a DEDUCT transaction. The service conditionally updates stock so a sale cannot leave a negative balance.
 
 ```mermaid
 sequenceDiagram
     actor Employee as Store Employee
     participant UI as React UI
-    participant API as FastAPI API
-    participant Auth as Authentication/RBAC
-    participant Inventory as Inventory Management
+    participant API as FastAPI
+    participant Tx as Transaction Service
     participant DB as PostgreSQL
-    participant Transaction as Transaction Management
 
-    Employee->>UI: Enter product and sale quantity
-    UI->>API: POST /inventory/sale
-    API->>Auth: Verify authentication and role
-    Auth-->>API: Authorization successful
-
-    API->>Inventory: Validate sale quantity
-    Inventory->>DB: Retrieve current stock
-    DB-->>Inventory: Current stock
-
+    Employee->>UI: Select product and enter quantity and reference
+    UI->>API: POST /transactions/ with DEDUCT
+    API->>Tx: Record the sale for the authenticated account
+    Tx->>DB: Apply deduction if sufficient stock exists
     alt Sufficient stock
-        Inventory->>DB: Deduct stock quantity
-        DB-->>Inventory: Stock updated
-        Inventory->>Transaction: Record stock deduction
-        Transaction->>DB: Store transaction
-        DB-->>Transaction: Transaction recorded
-        Transaction-->>API: Success
-        API-->>UI: 200 OK
-        UI-->>Employee: Display updated stock
+        Tx->>DB: Save transaction and audit event, then commit
+        Tx-->>API: Inventory transaction record
+        API-->>UI: 201 Created
+        UI-->>Employee: Show the recorded stock movement
     else Insufficient stock
-        Inventory-->>API: Reject transaction
+        Tx->>DB: Roll back
+        Tx-->>API: Insufficient stock
         API-->>UI: 400 Bad Request
-        UI-->>Employee: Display insufficient stock message
+        UI-->>Employee: Show the error
     end
 ```
 
 ## 4.4 API Design
 
-The system uses RESTful APIs with JSON for communication between the React frontend and FastAPI backend.
-
-The following APIs represent the main interfaces for Product Management and Inventory Management.
+The React frontend exchanges JSON with FastAPI. The endpoints below require a bearer token. [Product routes](../../backend/app/routers/product.py) and [transaction routes](../../backend/app/routers/transactions.py) define the full request and response schemas.
 
 ### 4.4.1 Add Product API
 
-**Endpoint:** `POST /products`
-
-**Purpose:** Creates a new product in the inventory system.
-
-**Request:**
+`POST /products/` creates a product for an administrator. The request requires `name`, `category`, `price`, and `quantity`. The optional `min_stock_level` defaults to zero.
 
 ```json
 {
-  "product_name": "Wireless Keyboard",
+  "name": "Wireless Keyboard",
   "category": "Computer Accessories",
   "price": 1499.00,
-  "quantity": 25
+  "quantity": 25,
+  "min_stock_level": 5
 }
 ```
 
-**Response:**
+The API returns HTTP 201 with the product record.
 
 ```json
 {
-  "message": "Product created successfully",
-  "product_id": "P001"
+  "id": 1,
+  "name": "Wireless Keyboard",
+  "category": "Computer Accessories",
+  "price": "1499.00",
+  "quantity": 25,
+  "min_stock_level": 5
 }
 ```
 
-**Possible Status Codes:**
-
-- `201 Created` – Product created successfully
-- `400 Bad Request` – Invalid product data
-- `401 Unauthorized` – User is not authenticated
-- `403 Forbidden` – User does not have permission
-- `409 Conflict` – Product information conflicts with an existing product
+Common errors are HTTP 401 for missing or invalid authentication, 403 for a non-admin caller, and 422 for schema validation errors.
 
 ### 4.4.2 Search Products API
 
-**Endpoint:** `GET /products?search=keyboard`
-
-**Purpose:** Searches for products by name, category, or product ID.
-
-**Response:**
-
-```json
-{
-  "products": [
-    {
-      "product_id": "P001",
-      "product_name": "Wireless Keyboard",
-      "category": "Computer Accessories",
-      "price": 1499.00,
-      "quantity": 25
-    }
-  ]
-}
-```
-
-**Possible Status Codes:**
-
-- `200 OK` – Search completed successfully
-- `400 Bad Request` – Invalid search request
-- `401 Unauthorized` – User is not authenticated
+`GET /products/?name=keyboard` searches product names. `category` and `product_id` are also supported. Name and category use case-insensitive partial matching. Product ID is matched exactly. Signed-in employees and administrators receive HTTP 200 with a JSON array of product records in the format shown above. An empty search result is an empty array.
 
 ### 4.4.3 Update Product API
 
-**Endpoint:** `PUT /products/{product_id}`
+`PUT /products/{product_id}` lets an administrator update the supplied product fields, such as `name`, `category`, `price`, or `min_stock_level`. For example, `{"price": 1599.00}` updates only the price. HTTP 200 returns the updated product record. A missing product returns 404, invalid fields return 422, and a direct stock quantity edit returns 400. Adjust stock through the transaction API.
 
-**Purpose:** Updates the details of an existing product.
+### 4.4.4 Record Stock Transaction API
 
-**Request:**
-
-```json
-{
-  "product_name": "Wireless Keyboard",
-  "category": "Computer Accessories",
-  "price": 1599.00
-}
-```
-
-**Response:**
+`POST /transactions/` records `ADD`, `DEDUCT`, or `SET`. An administrator can use all three. An employee can record a deduction. The request includes `user_id` for compatibility. The API attributes the recorded transaction to the authenticated account.
 
 ```json
 {
-  "message": "Product updated successfully"
+  "product_id": 1,
+  "transaction_type": "DEDUCT",
+  "quantity": 2,
+  "user_id": 2,
+  "reference": "SALE-001"
 }
 ```
 
-**Possible Status Codes:**
+HTTP 201 returns the transaction record, including its ID and timestamp. Read `GET /products/{product_id}` to get the resulting balance. The optional `Idempotency-Key` header allows the same authenticated account to retry an identical request without applying it twice. Reusing that key for a different transaction returns 409. Insufficient stock returns 400, unauthorized actions return 401 or 403, unknown products return 404, and invalid schemas return 422.
 
-- `200 OK` – Product updated successfully
-- `400 Bad Request` – Invalid product data
-- `401 Unauthorized` – User is not authenticated
-- `403 Forbidden` – User does not have permission
-- `404 Not Found` – Product does not exist
+### 4.4.5 Related API Interfaces
 
-### 4.4.4 Record Sale API
-
-**Endpoint:** `POST /inventory/sale`
-
-**Purpose:** Records a sale and deducts the sold quantity from current stock.
-
-**Request:**
-
-```json
-{
-  "product_id": "P001",
-  "quantity": 2
-}
-```
-
-**Response:**
-
-```json
-{
-  "message": "Sale recorded successfully",
-  "remaining_quantity": 23
-}
-```
-
-**Possible Status Codes:**
-
-- `200 OK` – Sale recorded and stock updated
-- `400 Bad Request` – Invalid quantity or insufficient stock
-- `401 Unauthorized` – User is not authenticated
-- `403 Forbidden` – User does not have permission
-- `404 Not Found` – Product does not exist
+| Interface | Access and behavior |
+|---|---|
+| `POST /auth/register`, `POST /auth/login`, `GET /auth/me` | Signup creates an employee when enabled. Login issues a bearer token. The authenticated account endpoint returns the current role. |
+| `GET /suppliers/`, `GET /suppliers/{supplier_id}` | Signed-in users can list suppliers and view their details. Supplier create and update routes require an administrator. |
+| `GET /transactions/` | Signed-in users can read recent stock movements, optionally filtered by product ID and limited to a specified result count. |
+| `GET /reports/`, `GET /audit-logs/` | Administrators can read inventory reports and audit records. |
+| `GET /health`, `GET /availability` | Health checks database connectivity. Availability reports data for a requested time window. |
 
 ## 4.5 Error Handling, Logging & Monitoring
 
@@ -656,13 +592,15 @@ The backend uses standard HTTP status codes to communicate the result of API req
 
 | Status Code | Meaning | Example |
 |---|---|---|
-| 200 OK | Request completed successfully | Product search or stock update |
+| 200 OK | Request completed successfully | Product search or product edit |
 | 201 Created | Resource created successfully | New product added |
-| 400 Bad Request | Invalid input or operation | Invalid quantity or product data |
+| 400 Bad Request | Operation rejected | Insufficient stock or direct quantity edit |
 | 401 Unauthorized | Authentication is required or invalid | Invalid login credentials |
 | 403 Forbidden | User does not have permission | Employee attempts an administrator-only operation |
 | 404 Not Found | Requested resource does not exist | Product ID not found |
-| 409 Conflict | Request conflicts with existing data | Duplicate product information |
+| 409 Conflict | Request conflicts with existing data | Transaction key already used for different data |
+| 422 Unprocessable Entity | Request fails schema validation | Negative quantity on product creation |
+| 503 Service Unavailable | Backend dependency is temporarily unavailable | Database connectivity failure |
 | 500 Internal Server Error | Unexpected server-side error | Unhandled application or database error |
 
 Error responses should provide a clear message to the frontend without exposing sensitive system information.
@@ -798,31 +736,14 @@ The interface should follow these usability principles:
 
 ### 4.7.1 Open Issues
 
-The following design details will be finalized during implementation:
-
-- Final database schema and relationships between tables
-- Detailed role-permission matrix for Administrator/Manager and Employee
-- Authentication and session/token implementation
-- Final API naming and request/response formats
-- Representation of minimum stock thresholds
-- Deployment environment and configuration
-- Monitoring and logging configuration
+- The SRS model lists employees and administrators for stock receipt. The tested API permits receipt by administrators. Confirm ES-F-010 with the team and reflect the agreed rule in the final SRS and test cases.
+- The local system run covered functional workflows and sample search performance. Production availability and formal usability validation are pending.
 
 ### 4.7.2 Next Steps
 
-The planned implementation activities are:
-
-1. Finalize the database schema and relationships.
-2. Implement authentication and role-based access control.
-3. Implement Product Management functionality.
-4. Implement Inventory Management functionality.
-5. Implement Supplier Management functionality.
-6. Implement Transaction and Audit Management functionality.
-7. Implement inventory reporting.
-8. Develop unit and integration tests.
-9. Integrate automated testing through GitHub Actions.
-10. Perform system and acceptance testing.
-11. Update the Requirements Traceability Matrix with implementation and test results.
+1. Reconcile requirement IDs and role permissions against the final SRS.
+2. Verify the hosted deployment using the [deployment guide](../deployment/PRODUCTION_DEPLOYMENT_GUIDE.md) and collect availability evidence across representative store operating hours.
+3. Keep the [Test Plan](../testing/Software_Test_Plan.md) and [System Test Report](../testing/reports/System_Test_Report.md) current as the implementation changes.
 
 # 5. Appendices
 
@@ -853,7 +774,7 @@ The following project documents and resources were used in preparing this archit
 
 ## 5.3 Tools and Technologies
 
-The proposed implementation uses the following tools and technologies:
+The implementation uses the following tools and technologies:
 
 - React
 - Vite
@@ -865,7 +786,8 @@ The proposed implementation uses the following tools and technologies:
 - GitHub
 - GitHub Actions
 - Pytest
-- Vitest
+- Node.js test runner
+- jsdom
 - React Testing Library
 - Postman
 - Mermaid
